@@ -1,0 +1,126 @@
+asterix 000 "test category"
+edition 1.0
+date 2000-01-01
+preamble
+    For test purposes.
+
+items
+
+    000 ""
+        element 8
+            raw
+
+    001 ""
+        element 8
+            table
+                0: Test0
+                1: Test1
+                255: Test255
+
+    002 ""
+        element 64
+            string ascii
+
+    003 ""
+        element 48
+            string icao
+
+    004 ""
+        element 24
+            string octal
+
+    005 ""
+        element 16
+            unsigned quantity 360 16 "°"
+
+    010 "Data Source Identifier"
+        group
+            SAC "System Area Code"
+                element 8
+                    raw
+            SIC "System Identification Code"
+                element 8
+                    raw
+
+    011 ""
+        group
+            A ""
+                element 7
+                    raw
+            spare 2
+            B ""
+                element 7
+                    raw
+
+    020 ""
+        extended 8 8
+            A ""
+                element 7
+                    raw
+            B ""
+                element 4
+                    raw
+            C ""
+                element 3
+                    raw
+            spare 1
+            D ""
+                element 6
+                    raw
+
+    021 ""
+        extended no-trailing-fx 8 8
+            A ""
+                element 7
+                    raw
+            B ""
+                element 4
+                    raw
+            C ""
+                element 3
+                    raw
+            spare 2
+            D ""
+                element 6
+                    raw
+
+    030 ""
+        repetitive 8
+            element 8
+                raw
+
+    040 ""
+        explicit
+
+    050 ""
+        compound
+            C1 ""
+                element 8
+                    raw
+            -
+            C2 ""
+                element 16
+                    raw
+            -
+            -
+            -
+            -
+            C3 ""
+                element 24
+                    raw
+
+uap
+    000
+    001
+    002
+    003
+    004
+    005
+    010
+    011
+    020
+    021
+    030
+    040
+    050
+

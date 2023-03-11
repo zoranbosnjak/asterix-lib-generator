@@ -1,0 +1,103 @@
+cabal-version:      2.4
+name:               generator
+version:            0.1.0
+synopsis:           Asterix source code generator.
+-- description:
+homepage:           https://zoranbosnjak.github.io/comet/
+bug-reports:        https://github.com/zoranbosnjak/comet/issues
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Zoran Bošnjak
+maintainer:         zoran.bosnjak@sloveniacontrol.si
+-- copyright:
+category:           Data
+extra-source-files:
+    CHANGELOG.md
+
+common deps
+    build-depends:
+        base < 5
+        , aspecs
+        , with-utf8
+        , optparse-applicative
+        , transformers
+        , mtl
+        , containers
+        , text
+        , bytestring
+        , file-embed
+        , formatting
+
+common opts
+    other-extensions: AllowAmbiguousTypes
+    default-language: Haskell2010
+    default-extensions:
+        ApplicativeDo
+        BangPatterns
+        ConstraintKinds
+        DataKinds
+        DefaultSignatures
+        DeriveFoldable
+        DeriveFunctor
+        DeriveGeneric
+        DeriveLift
+        DeriveTraversable
+        DerivingStrategies
+        EmptyCase
+        ExistentialQuantification
+        FlexibleContexts
+        FlexibleInstances
+        FunctionalDependencies
+        GADTs
+        GeneralizedNewtypeDeriving
+        InstanceSigs
+        KindSignatures
+        LambdaCase
+        MultiParamTypeClasses
+        MultiWayIf
+        NamedFieldPuns
+        OverloadedStrings
+        PatternSynonyms
+        RankNTypes
+        ScopedTypeVariables
+        StandaloneDeriving
+        TupleSections
+        TypeApplications
+        TypeFamilies
+        TypeFamilyDependencies
+        TypeOperators
+
+common app
+    other-modules:
+        Paths_generator
+    -- other-extensions:
+    hs-source-dirs:   app
+    default-language: Haskell2010
+
+    ghc-options:
+        -O2 -rtsopts -funbox-strict-fields -with-rtsopts=-T -threaded
+        -Wall
+        -Wincomplete-uni-patterns
+        -Wincomplete-record-updates
+        -Wcompat
+        -Widentities
+        -Wredundant-constraints
+    default-extensions: StrictData
+    build-depends:
+        generator
+
+library
+    import: deps, opts
+    exposed-modules:
+        Asterix.Struct
+        Asterix.Language.Python.Generator
+    -- other-modules:
+    -- other-extensions:
+    hs-source-dirs:
+        lib
+    default-language: Haskell2010
+
+executable ast-code-generator
+    import: deps, opts, app
+    main-is: Asterix-code-generator.hs
+
