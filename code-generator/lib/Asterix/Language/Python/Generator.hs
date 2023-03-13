@@ -5,7 +5,7 @@
 module Asterix.Language.Python.Generator (mkCode) where
 
 import           Control.Monad.State
-import           Data.List (nub, sortOn, sortBy, intersperse, inits)
+import           Data.List (nub, sort, sortOn, sortBy, intersperse, inits)
 import           Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -764,10 +764,10 @@ programManifest specs = enclose "manifest = {" "}" $ do
     go :: Text -> [BlockM Builder ()]
     go t = do
         let candidates = [b | (a, b) <- lst, a == t]
-        cat <- nub $ fmap fst candidates
+        cat <- sort $ nub $ fmap fst candidates
         let hdr = fmt (int % ": {") cat
         pure $ enclose hdr "}," $ mconcat $ do
-            (Edition eMaj eMin, cls) <- [b | (a, b) <- candidates, a == cat]
+            (Edition eMaj eMin, cls) <- sortOn fst [b | (a, b) <- candidates, a == cat]
             let edition = sformat ("'" % int % "." % int % "'") eMaj eMin
             pure $ fmt stext ( edition <> ": " <> cls <> ",")
 
