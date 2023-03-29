@@ -1,0 +1,22 @@
+name: rebuild and deploy
+on: [push, pull_request]
+jobs:
+    main:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - uses: cachix/install-nix-action@master
+            - name: rebuild
+              run: |
+                nix-build --argstr gitrev $GITHUB_SHA
+                rsync -r -L --delete result/ output/
+                find output -type d | xargs chmod 755
+                find output -type f | xargs chmod 644
+                touch output/.nojekyll
+            - name: deploy
+              if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+              uses: JamesIves/github-pages-deploy-action@v4
+              with:
+                folder: output
+                single-commit: true
+
