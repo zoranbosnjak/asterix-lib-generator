@@ -27,7 +27,7 @@ runhaskell $EXTENSIONS -iother -ilib -iapp ./app/Asterix-code-generator.hs \
 
 # generate python code with all defined specs
 runhaskell $EXTENSIONS -iother -ilib -iapp ./app/Asterix-code-generator.hs \
-    --language python $SPECS | tee ../comet-py/asterix.py
+    --language python $SPECS
 
 exit
 ```

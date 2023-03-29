@@ -21,7 +21,7 @@ import           Asterix.Struct (Asterix, deriveAsterix)
 
 import qualified Asterix.Language.Python.Generator as Python
 
-languages :: [(Text, Bool -> Maybe Text -> Set Asterix -> TL.Text)]
+languages :: [(Text, Bool -> Integer -> Text -> Set Asterix -> TL.Text)]
 languages =
     [ ("python", Python.mkCode)
     ]
@@ -29,7 +29,8 @@ languages =
 data Options = Options
     { optLanguage :: Text
     , optComments :: Bool
-    , optReference :: Maybe Text
+    , optTimestamp :: Integer
+    , optReference :: Text
     , optPaths :: [FilePath]
     } deriving (Show)
 
@@ -39,8 +40,18 @@ parseOptions = Options
         <> help ("Target format: " ++ show (fmap fst languages)))
     <*> switch (long "comments" <> short 'c'
        <> help "Include verbose comments in output" )
-    <*> optional (strOption (long "reference" <> metavar "REF"
-        <> help ("Put reference string to the source code")))
+    <*> option auto
+        ( long "timestamp" <> metavar "TS"
+       <> help "Version unix timestamp"
+       <> showDefault
+       <> value 0
+        )
+    <*> strOption
+        ( long "reference" <> metavar "REF"
+       <> help "Version control reference"
+       <> showDefault
+       <> value "unknown"
+        )
     <*> some (Opt.argument str (metavar "PATH..."
        <> help ("Spec input file(s), supported formats: " ++ show syntaxList)))
   where
@@ -80,6 +91,7 @@ main = withUtf8 $ do
         lookup (optLanguage cmdOptions) languages
     BSL.putStr $ TL.encodeUtf8 $ mkCode
         (optComments cmdOptions)
+        (optTimestamp cmdOptions)
         (optReference cmdOptions)
         (Set.fromList specs)
 

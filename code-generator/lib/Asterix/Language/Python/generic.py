@@ -6,7 +6,7 @@ from typing import *
 from functools import reduce, total_ordering, partial
 import math
 from abc import *
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 import re
 
 Raw : TypeAlias = int
@@ -738,6 +738,8 @@ class Basic(AsterixSpec):
 
     @classmethod
     def _parse(cls, raw_db : RawDatablock, uap : Optional[str] = None) -> Any:
+        if raw_db.category != cls.cat:
+            raise AsterixError('Wrong category')
         s = Bits.from_bytes(raw_db.raw_records)
         records = []
         while len(s) > 0:

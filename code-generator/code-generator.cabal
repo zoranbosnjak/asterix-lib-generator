@@ -27,6 +27,7 @@ common deps
         , bytestring
         , file-embed
         , formatting
+        , time
 
 common opts
     other-extensions: AllowAmbiguousTypes

@@ -302,3 +302,12 @@ def test_record() -> None:
 
     assert Spec.parse_bits(rec.unparse_bits()) == (rec, Bits.empty())
 
+def test_category() -> None:
+    S0 = CAT_000_1_0
+    S2 = CAT_002_1_0
+    rec = S2.make_record_unsafe('uap0', {'000': 0})
+    db = S2.make_datablock(rec)
+    raw_datablocks = RawDatablock.parse(db.unparse())
+    with pytest.raises(AsterixError):   # wrong category
+        raw = S0.parse(raw_datablocks[0])
+

@@ -1,1 +1,0 @@
-../support/Language/Python/shell.nix
