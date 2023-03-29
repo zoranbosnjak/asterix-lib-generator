@@ -25,10 +25,14 @@ in with packages; runCommand name {
     export TIMESTAMP=$(${genTimestamp})
     mkdir $out
 
+    echo timestamp $TIMESTAMP
+    echo reference $REFERENCE
+
     ${codeGenerator}/bin/ast-code-generator \
       --language ${lang} \
       --timestamp $TIMESTAMP \
-      --reference $REFERENCE $SPECS \
+      --reference $REFERENCE \
+      $SPECS \
       > $out/${filename}
 
     mkdir -p $out/asterix-lib/src
