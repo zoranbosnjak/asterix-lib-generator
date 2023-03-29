@@ -5,7 +5,23 @@
 }:
 
 let
-  drv = import ./website { inherit gitrev; inherit pkgs; inShell = false; };
+  cmd1 = ''
+    mkdir $out
+    echo 0 > $out/timestamp
+  '';
+
+  cmd2 = ''
+    mkdir $out
+    ${pkgs.git}/bin/git show -s --format=%ct ${gitrev} > $out/timestamp
+  '';
+
+  timestamp = pkgs.stdenv.mkDerivation {
+    name = "timestamp";
+    src = ./.;
+    installPhase = if gitrev == null then cmd1 else cmd2;
+  };
+
+  drv = import ./website { inherit gitrev pkgs timestamp; inShell = false; };
   env = pkgs.stdenv.mkDerivation {
     name = "comet-environment";
     buildInputs = [];

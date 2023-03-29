@@ -2,6 +2,10 @@
 , sources ? import ../nix/sources.nix
 , pkgs ? import sources.nixpkgs {}
 , inShell ? null
+, timestamp ?  pkgs.stdenv.mkDerivation {name = "timestamp"; src = ./.; installPhase = ''
+      mkdir $out
+      echo 0 > $out/timestamp
+    '';}
 }:
 
 let
@@ -22,12 +26,6 @@ let
     then "unknown"
     else "${gitrev}";
 
-  base = ../.;
-
-  genTimestamp = if gitrev == null
-    then "echo 0"
-    else "${pkgs.git}/bin/git -C ${base} show -s --format=%ct ${gitrev}";
-
   envVars = ''
     export ASTERIX_SPECS=${aspecsDir}
     export SPECS=$(find ${aspecsDir}/specs/cat* | grep "\.ast")
@@ -44,7 +42,7 @@ let
     shellHook = envVars;
   };
 
-  libPython = import ../support/Language/Python/lib.nix { inherit reference genTimestamp codeGenerator aspecsDir; };
+  libPython = import ../support/Language/Python/lib.nix { inherit reference timestamp codeGenerator aspecsDir; };
 
   drv = pkgs.stdenv.mkDerivation {
     name = "comet-website";
@@ -54,7 +52,7 @@ let
     installPhase = ''
       mkdir -p $out
       echo ${reference} > $out/reference.txt
-      ${genTimestamp} > $out/timestamp.txt
+      cat ${timestamp}/timestamp > $out/timestamp.txt
 
       # python lib
       mkdir -p $out/lib/python

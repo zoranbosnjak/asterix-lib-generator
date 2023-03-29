@@ -1,5 +1,5 @@
 { reference
-, genTimestamp
+, timestamp
 , codeGenerator
 , aspecsDir
 }:
@@ -16,13 +16,12 @@ let
 
 in with packages; runCommand name {
   propagatedBuildInputs = deps;
-  base = ../../../.;
   src = ./.;
   }
   ''
     export SPECS=$(find ${aspecsDir}/specs/cat* | grep "\.ast")
     export REFERENCE=${reference}
-    export TIMESTAMP=$(${genTimestamp})
+    export TIMESTAMP=$(cat ${timestamp}/timestamp)
     mkdir $out
 
     echo timestamp $TIMESTAMP
@@ -36,7 +35,7 @@ in with packages; runCommand name {
       > $out/${filename}
 
     mkdir -p $out/asterix-lib/src
-    cp $base/LICENSE $src/pyproject.toml $out/asterix-lib
+    cp $src/LICENSE $src/pyproject.toml $out/asterix-lib
     echo "# asterix library for ${lang}" > $out/asterix-lib/README.md
     touch $out/asterix-lib/src/__init__.py
     cp $out/${filename} $out/asterix-lib/src/
