@@ -3,6 +3,9 @@
 
 from dataclasses import dataclass
 from typing import *
+import sys
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
 from functools import reduce, total_ordering, partial
 import math
 from abc import *
