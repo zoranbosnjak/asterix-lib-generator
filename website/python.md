@@ -25,7 +25,7 @@ sources or to some location where `python` can find it.
 cp ~/Downloads/asterix.py path/to/my-asterix-python-project/src
 # or
 cd path/to/my-asterix-python-project/src
-wget https://zoranbosnjak.github.io/comet/lib/python/asterix.py
+wget https://zoranbosnjak.github.io/asterix-lib-generator/lib/python/asterix.py
 
 # or check default python path and copy to the appropriate location
 python3 -c "import sys; print('\n'.join(sys.path))"
@@ -37,7 +37,7 @@ The library is also available as a [python package](lib/python/asterix-lib.tgz).
 Use `pip` to install or update:
 
 ```bash
-pip install https://zoranbosnjak.github.io/comet/lib/python/asterix-lib.tgz
+pip install https://zoranbosnjak.github.io/asterix-lib-generator/lib/python/asterix-lib.tgz
 ```
 
 ## Tutorial

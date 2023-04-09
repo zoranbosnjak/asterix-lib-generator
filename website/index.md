@@ -13,7 +13,7 @@ asterix-specs -> source code generator -> asterix libs
 ```
 
 The main part of this project is a
-[source code generator](https://github.com/zoranbosnjak/comet/tree/master/code-generator).
+[source code generator](https://github.com/zoranbosnjak/asterix-lib-generator/tree/master/code-generator).
 Output of this program is the *asterix library* source code for the target programming
 language, for example:
 

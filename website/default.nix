@@ -45,7 +45,7 @@ let
   libPython = import ../support/Language/Python/lib.nix { inherit reference timestamp codeGenerator aspecsDir; };
 
   drv = pkgs.stdenv.mkDerivation {
-    name = "comet-website";
+    name = "asterix-lib-generator-website";
     preBuild = envVars;
     src = ./.;
     buildInputs = deps;

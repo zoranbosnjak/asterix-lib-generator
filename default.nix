@@ -23,7 +23,7 @@ let
 
   drv = import ./website { inherit gitrev pkgs timestamp; inShell = false; };
   env = pkgs.stdenv.mkDerivation {
-    name = "comet-environment";
+    name = "asterix-lib-generator-environment";
     buildInputs = [];
     shellHook = ''
       echo "Run nix-shell inside individual sub-directory!"

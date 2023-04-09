@@ -14,8 +14,8 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://zoranbosnjak.github.io/comet/"
-"Bug Tracker" = "https://github.com/zoranbosnjak/comet/issues"
+"Homepage" = "https://zoranbosnjak.github.io/asterix-lib-generator/"
+"Bug Tracker" = "https://github.com/zoranbosnjak/asterix-lib-generator/issues"
 
 [tool.setuptools.dynamic]
 version = {attr = "asterix.VERSION"}

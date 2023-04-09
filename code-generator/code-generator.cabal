@@ -3,8 +3,8 @@ name:               generator
 version:            0.1.0
 synopsis:           Asterix source code generator.
 -- description:
-homepage:           https://zoranbosnjak.github.io/comet/
-bug-reports:        https://github.com/zoranbosnjak/comet/issues
+homepage:           https://zoranbosnjak.github.io/asterix-lib-generator/
+bug-reports:        https://github.com/zoranbosnjak/asterix-lib-generator/issues
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Zoran Bošnjak
