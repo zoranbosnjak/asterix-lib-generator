@@ -306,7 +306,472 @@ $ mypy some-asterix-related-program.py
 Found 2 errors in 1 file (checked 1 source file)
 ```
 
-## Reference manual
+## Module classes and functions
 
-TODO...
+### AsterixError
 
+```python
+class AsterixError(Exception):
+    def __init__(self, msg : Optional[str]=None):
+class AsterixOverflow(AsterixError):
+```
+
+### RawDatablock class
+
+```python
+class RawDatablock:
+    @classmethod
+    def parse(cls, s : bytes) -> List['RawDatablock']:
+        """Parse the first level of asterix to the list of results."""
+
+    def unparse(self) -> bytes:
+
+    @property
+    def category(self) -> int:
+
+    @property
+    def length(self) -> int:
+
+    @property
+    def raw_records(self) -> bytes:
+```
+
+### Bits class
+
+```python
+class Bits:
+    """Bit string, a wrapper around bytes (bytes, offset, size)."""
+    @classmethod
+    def empty(cls) -> 'Bits':
+
+    @classmethod
+    def from_bytes(cls, val : bytes) -> 'Bits':
+
+    @classmethod
+    def from_uinteger(cls, raw : int, o : int, n : int) -> 'Bits':
+
+    def __len__(self) -> int:
+
+    def __iter__(self) -> Iterator[bool]:
+
+    def __eq__(self, other : Any) -> bool:
+
+    def __str__(self) -> str:
+
+    def split_at(self, n : int) -> Tuple['Bits', 'Bits']:
+
+    def take(self, x : int) -> 'Bits':
+
+    def drop(self, x : int) -> 'Bits':
+
+    def __add__(self, other : 'Bits') -> 'Bits':
+
+    def to_bytes(self) -> bytes:
+
+    def to_uinteger(self) -> int:
+
+    @classmethod
+    def join(cls, lst : List['Bits']) -> 'Bits':
+```
+
+### Variation class and subclasses
+
+```python
+class Variation:
+    """Baseclass for all variations."""
+    def __init__(self, val : Bits):
+
+    def unparse_bits(self) -> Bits:
+
+    def __eq__(self, other : object) -> bool:
+
+    def to_uinteger(self) -> int:
+
+class Element(Variation):
+    bit_offset8 : int
+    bit_size : int
+    string_type : StringType
+    quantity : Quantity
+
+    @classmethod
+    def parse_bits(cls, s : Bits) -> Any:
+
+    def _from_raw(self, raw : Raw) -> Bits:
+
+    def _from_string(self, s : str) -> Bits:
+
+    def _from_float(self, val : float) -> Bits:
+
+    def _to_string(self) -> str:
+
+    def _to_quantity(self) -> float:
+
+class Group(Variation):
+    subitems_list : List[Union[Spare, Tuple[ItemName, Any]]]
+    subitems_dict : Dict[ItemName, Tuple[str, Any, int, int]]
+
+    @classmethod
+    def parse_bits(cls, s : Bits) -> Any:
+
+    def __init__(self, val : Bits, items : Dict[ItemName, Any]):
+
+    def _from_items(self, args : Any) -> Tuple[Bits, Dict[ItemName, Element]]:
+
+    def _from_raw(self, raw : Raw) -> Tuple[Bits, Dict[ItemName, Element]]:
+
+    def _get_item(self, name : Any) -> Any:
+
+    def _set_item(self, name : Any, val : Any) -> Any:
+
+class Extended(Variation):
+    no_trailing_fx : bool # See [ref:extended-no-trailing-fx].
+    prim_bit_size : int
+    ext_bit_size : int
+    groups_bit_sizes : List[int]
+    subitems_list : List[List[Union[Spare, Tuple[ItemName, Any]]]]
+    subitems_dict : Dict[ItemName, Tuple[str, Any, int, int]]
+
+    @classmethod
+    def parse_bits(cls, s : Bits) -> Any:
+
+    def __init__(self, val : Bits, items : Dict[ItemName, Element]):
+
+    def _from_tuple_int(self, val : Any) -> Tuple[Bits, Dict[ItemName, Element]]:
+
+    def _from_dict(self, n : int, arg : Any) -> Tuple[Bits, Dict[ItemName, Element]]:
+
+    def _get_item(self, name : Any) -> Any:
+
+class Repetitive(Variation):
+    rep_byte_size : int
+    variation_bit_size : int
+    variation_type : Any
+
+    @classmethod
+    def parse_bits(cls, s : Bits) -> Any:
+
+    def __init__(self, val : Bits, items : List[Variation]):
+
+    def _from_list(self, lst : List[Any]) -> Tuple[Bits, Any]:
+
+    def __len__(self) -> Any:
+
+    def __iter__(self) -> Any:
+
+    def __getitem__(self, ix : int) -> Any:
+
+class Explicit(Variation):
+
+    @classmethod
+    def parse_bits(cls, s : Bits) -> Any:
+
+    def __init__(self, val : Bits, raw : bytes):
+
+    def _from_bytes(self, arg : bytes) -> Tuple[Bits, bytes]:
+
+    @property
+    def raw(self) -> bytes:
+
+class Compound(Variation):
+    fspec_fx : bool
+    fspec_max_bytes : int
+    subitems_list : List[Optional[Tuple[ItemName, Any]]]
+    subitems_dict : Dict[ItemName, Tuple[Any, int]]
+
+    @classmethod
+    def parse_bits(cls, s : Bits) -> Any:
+
+    def __init__(self, val : Bits = Bits.empty(), items : Dict[ItemName, Variation] = {}) -> None:
+
+    def __bool__(self) -> bool:
+
+    def _set_item(self, name : ItemName, val : Any) -> Any:
+
+    def _update(self, args : Any) -> Any:
+
+    def _del_item(self, name : ItemName) -> Any:
+
+    def _get_item(self, name : ItemName) -> Any:
+```
+
+### Datablock class
+
+```python
+T = TypeVar('T')
+class Datablock(Generic[T]):
+    """Correctly constructed/parsed datablock."""
+    def __init__(self, cat : int, lst : Union[T, List[T]], val : Optional[bytes] = None):
+
+    def unparse(self) -> bytes:
+
+    def __eq__(self, other : Any) -> bool:
+
+    @property
+    def records(self) -> List[T]:
+```
+
+### AsterixSpec class and subclasses
+
+```python
+class AsterixSpec:
+    """Asterix base class."""
+    cat : int
+
+class Basic(AsterixSpec):
+    variation : Any
+    uaps : Any
+    uap_selector_item : Any
+    uap_selector_table : Any
+
+    @classmethod
+    def _parse(cls, raw_db : RawDatablock, uap : Optional[str] = None) -> Any:
+
+    @classmethod
+    def _is_valid(cls, rec : Any) -> bool:
+
+class Expansion(AsterixSpec):
+    variation : Any
+```
+
+### Generated subclasses
+
+#### Element
+
+```python
+class Variation_XY(Element):
+    variation = 'Element'
+    bit_offset8 = ... (int)
+    bit_size = ... (int)
+
+    # if content == table
+    table = {
+        0: 'val0',
+        1: 'val1',
+        ...
+    }
+
+    # if content == string
+    string_type = StringAscii() | StringICAO() | StringOctal()
+
+    # if content == quantity
+    quantity = Quantity(...)
+```
+
+#### Group
+
+```python
+class Variation_XY(Group):
+    variation = 'Group'
+    bit_size = 16
+    subitems_list = [
+        ('NAME1', Variation_1),
+        ('NAME2', Variation_2),
+        ...
+    ]
+
+    # name: (title, cls, group_offset, bit_size)
+    subitems_dict = {
+        'NAME1': ('Title 1', Variation_1, 0, 8),
+        'NAME2': ('Title 2', Variation_2, 0, 8),
+        ...
+    }
+
+    @classmethod
+    def spec(cls, key : Union[Literal['NAME1'], Literal['NAME2']]) -> Union[Type['Variation_1'], Type['Variation_2']]:
+        """Get spec of subitem."""
+
+    def __init__(self, arg : Variation_XY_Arg) -> None:
+        if isinstance(arg, tuple):
+        if isinstance(arg, dict):
+        if isinstance(arg, Raw):
+        assert_never(arg)
+
+    def get_item(self, name : Union[Literal['NAME1'], Literal['NAME2']]) -> Any:
+
+    def set_item(self, name : Any, val : Any) -> Any:
+```
+
+#### Extended
+
+```python
+class Variation_XY(Extended):
+    variation = 'Extended'
+    no_trailing_fx = False | True
+    prim_bit_size = (int)
+    ext_bit_size = (int)
+    groups_bit_sizes = [
+        (int),
+        (int),
+        ...
+    ]
+
+    subitems_list = [
+        [   # primary part
+            ('NAME1', Variation_1),
+        ],
+        [   # extension
+            ('NAME2', Variation_2),
+            ('NAME3', Variation_3),
+        ],
+        [   # extension
+            Spare((int), (int)),
+            ('NAME4', Variation_4),
+        ],
+    ]
+
+    # name: (title, cls, group_offset, bit_size)
+    subitems_dict = {
+        'NAME1': ('Title 1', Variation_1, 0, 7),
+        'NAME2': ('Title 2', Variation_2, 0, 7),
+        'NAME3': ('Title 3', Variation_3, 0, 7),
+    }
+
+    @classmethod
+    def spec(cls, key : Union[Literal['NAME1'], Literal['NAME2']]) -> Union[Type['Variation_1'], Type['Variation_2']]:
+        """Get spec of subitem."""
+
+    def __init__(self, arg : Variation_13_Arg) -> None:
+        if isinstance(arg, int):
+        if isinstance(arg, tuple):
+        if isinstance(arg, dict):
+        assert_never(arg)
+
+    def get_item(self, name : Union[Literal['NAME1'], Literal['NAME2'], Literal['NAME3']]) -> Any:
+```
+
+#### Repetitive
+
+```python
+class Variation_XY(Repetitive):
+    variation = 'Repetitive'
+    rep_byte_size = (int)
+    variation_bit_size = (int)
+    variation_type = Variation_1
+
+    @classmethod
+    def spec(cls) -> Type[Variation_1]:
+        """Get spec of subitem."""
+
+    def __init__(self, arg : List[Union[Variation_1, Variation_1_Arg]]) -> None:
+        if isinstance(arg, tuple):
+        if isinstance(arg, list):
+        assert_never(arg)
+```
+
+#### Explicit
+
+```python
+class Variation_XY(Explicit):
+    variation = 'Explicit'
+    def __init__(self, arg : bytes) -> None:
+        if isinstance(arg, tuple):
+        if isinstance(arg, bytes):
+        assert_never(arg)
+```
+
+#### Compound
+
+```python
+class Variation_XY(Compound):
+    variation = 'Compound'
+    fspec_fx = False | True
+    fspec_max_bytes = (int)
+
+    subitems_list = [
+        ('NAME1', Variation_1),
+        None,
+        ('NAME2', Variation_2),
+        ('NAME3', Variation_3),
+        ...
+    ]
+
+    # name: (cls, fspec)
+    subitems_dict = {
+        'NAME1': (Variation_1, 0x8000),
+        'NAME2': (Variation_2, 0x2000),
+        'NAME3': (Variation_3, 0x0180),
+        ...
+    }
+
+    @classmethod
+    def spec(cls, key : Union[Literal['NAME1'], Literal['NAME2']]) -> Union[Type['Variation_1'], Type['Variation_2']]:
+        """Get spec of subitem."""
+
+    def __init__(self, arg : Optional[Variation_XY_Arg] = None) -> None:
+
+    def set_item(self, name : Any, val : Any) -> Any:
+
+    def del_item(self, name : Any) -> Any:
+
+    def get_item(self, name : Any) -> Any:
+```
+
+#### Basic spec
+
+```python
+class CAT_(cat)_(edMajor)_(edMinor)(Basic):
+    cat = (int)
+    variation = Variation_XY
+    spec = variation.spec
+    parse_bits = variation.parse_bits
+    unparse_bits = variation.unparse_bits
+
+    # if multiple UAPs are present
+    uaps = {
+        'uap0': Variation_0,
+        'uap1': Variation_1,
+        ...
+    }
+
+    uap_selector_item = None | ["ITEM", "SUBITEM"]
+
+    uap_selector_table = None | {
+        0: 'uap0',
+        1: 'uap1',
+        ...
+    }
+
+    @classmethod
+    def make_record(cls, val : Variation_XY_Arg) -> Variation_XY:
+
+    @classmethod
+    def make_datablock(cls, val : Union[Variation_XY, List[Variation_XY]]) -> Datablock[Variation_XY]:
+
+    @classmethod
+    def parse(cls, val : RawDatablock) -> Datablock[Variation_XY]:
+```
+
+#### Expansion spec
+
+```python
+class REF_000_1_0(Expansion):
+    cat = (int)
+    variation = Variation_XY
+    spec = variation.spec
+    parse_bits = variation.parse_bits
+    unparse_bits = variation.unparse_bits
+
+    @classmethod
+    def make_extended(cls, val : Variation_XY_Arg) -> Variation_XY:
+
+    @classmethod
+    def parse(cls, val : bytes) -> Variation_XY:
+```
+
+#### Generated manifest
+
+Example:
+
+```python
+manifest = {
+    'CATS': {
+        1: {
+            '1.2': CAT_001_1_2,
+            '1.3': CAT_001_1_3,
+            '1.4': CAT_001_1_4,
+        },
+        2: {
+            '1.0': CAT_002_1_0,
+            '1.1': CAT_002_1_1,
+        #...
+```
