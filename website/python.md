@@ -73,6 +73,37 @@ except AsterixError as e:
 
 For clarity, the error handling part is skipped in the rest of this tutorial.
 
+### Immutable objects
+
+All operation on asterix objects are *immutable*.
+
+For example:
+
+```python
+from asterix import *
+
+Spec = CAT_002_1_1
+# create empty record
+rec0 = Spec.make_record({})
+
+# this operation does nothing (result is not stored)
+rec0.set_item('000', 1)
+assert rec0.get_item('000') is None
+
+# store result to 'rec1'
+rec1 = rec0.set_item('000', 1)
+assert rec1.get_item('000') is not None
+
+# use multiple updates in sequence
+rec2 = rec0.set_item('000', 1).set_item('010', {'SAC': 1, 'SIC': 2})
+assert rec2 == Spec.make_record({'000': 1, '010': {'SAC': 1, 'SIC': 2}})
+
+# mutation can be simulated by replacing old object with the new one
+# (using the same variable name)
+rec0 = rec0.set_item('000', 1)
+assert rec0.get_item('000') is not None
+```
+
 ### Datagram
 
 Datagram is a raw binary data as received for example from UDP socket.
@@ -147,6 +178,72 @@ for raw_datablock in raw_datablocks:
     for record in datablock.records:
         message_type = record.get_item('000') # returns None if the item is not present
         print('{}: {}'.format(message_type.to_uinteger(), message_type.table_value))
+```
+
+**Example**: Asterix filter, rewrite SAC/SIC code with random values (complete example).
+
+```python
+import time
+import random
+from asterix import *
+
+# categories/editions of interest
+Specs = {
+    48: CAT_048_1_31,
+    62: CAT_062_1_19,
+    63: CAT_063_1_6,
+    # ...
+    }
+
+def process_record(sac, sic, rec):
+    """Process single record."""
+    # One option is to use 'set_item' to insert '010' unconditionally
+    # return rec.set_item('010', {'SAC': sac, 'SIC': sic})
+    # ... or 'modify_item', where '010' is modified only if already present
+    return rec.modify_item('010', lambda _old: {'SAC': sac, 'SIC': sic})
+
+def process_datablock(sac, sic, raw_db):
+    """Process single raw datablock."""
+    cat = raw_db.category
+    Spec = Specs.get(cat)
+    if Spec is None:
+        return raw_db
+    # second level of parsing (records are valid)
+    db = Spec.parse(raw_db)
+    new_records = [process_record(sac, sic, rec) for rec in db.records]
+    return Spec.make_datablock(new_records)
+
+def rewrite_sac_sic(sac : int, sic : int, s : bytes) -> bytes:
+    """Process datagram."""
+    # first level of parsing (datablocks are valid)
+    raw_datablocks = RawDatablock.parse(s)
+    result = [process_datablock(sac, sic, db) for db in raw_datablocks]
+    output = b''.join([db.unparse() for db in result])
+    return output
+
+def rx_bytes_from_the_network():
+    """Dummy rx function (generate valid asterix datagram)."""
+    time.sleep(1)
+    Spec = CAT_048_1_31
+    rec = Spec.make_record({'010': 0, '040': 0})
+    db1 = Spec.make_datablock([rec, rec])
+    db2 = Spec.make_datablock([rec, rec])
+    return b''.join([db1.unparse(), db2.unparse()])
+
+def tx_bytes_to_the_network(s_output):
+    """Dummy tx function."""
+    print(hexlify(s_output))
+
+# main processing loop
+while True:
+    s_input = rx_bytes_from_the_network()
+    new_sac = random.randint(0,127)
+    new_sic = random.randint(128,255)
+    try:
+        s_output = rewrite_sac_sic(new_sac, new_sic, s_input)
+        tx_bytes_to_the_network(s_output)
+    except AsterixError as e:
+        print('Asterix exception: ', e)
 ```
 
 #### Reserved expansion fields
@@ -423,6 +520,8 @@ class Group(Variation):
 
     def _set_item(self, name : Any, val : Any) -> Any:
 
+    def _modify_item(self, name : Any, f : Any) -> Any:
+
 class Extended(Variation):
     no_trailing_fx : bool # See [ref:extended-no-trailing-fx].
     prim_bit_size : int
@@ -442,6 +541,10 @@ class Extended(Variation):
 
     def _get_item(self, name : Any) -> Any:
 
+    def _set_item(self, name : Any, val : Any) -> Any:
+
+    def _modify_item(self, name : Any, f : Any) -> Any:
+
 class Repetitive(Variation):
     rep_byte_size : int
     variation_bit_size : int
@@ -459,6 +562,10 @@ class Repetitive(Variation):
     def __iter__(self) -> Any:
 
     def __getitem__(self, ix : int) -> Any:
+
+    def _append_item(self, arg : Any) -> Any:
+
+    def _prepend_item(self, arg : Any) -> Any:
 
 class Explicit(Variation):
 
@@ -492,6 +599,8 @@ class Compound(Variation):
     def _del_item(self, name : ItemName) -> Any:
 
     def _get_item(self, name : ItemName) -> Any:
+
+    def _modify_item(self, name : Any, f : Any) -> Any:
 ```
 
 ### Datablock class
@@ -589,6 +698,22 @@ class Variation_XY(Group):
     def get_item(self, name : Union[Literal['NAME1'], Literal['NAME2']]) -> Any:
 
     def set_item(self, name : Any, val : Any) -> Any:
+
+    def modify_item(self, name : Any, f : Any) -> Any:
+```
+
+Group item manipulation example:
+
+```python
+from asterix import *
+
+item_spec = CAT_048_1_31.spec('010')
+item1 = item_spec({'SAC': 1, 'SIC': 2})         # create group item
+assert item1.get_item('SAC').to_uinteger() == 1 # get_item
+item2 = item1.set_item('SAC', 2)                # set item
+assert item2.get_item('SAC').to_uinteger() == 2 # check
+item3 = item1.modify_item('SAC', lambda x: x.to_uinteger()+1) # modify item
+assert item2 == item3                           # check
 ```
 
 #### Extended
@@ -637,6 +762,41 @@ class Variation_XY(Extended):
         assert_never(arg)
 
     def get_item(self, name : Union[Literal['NAME1'], Literal['NAME2'], Literal['NAME3']]) -> Any:
+
+    def set_item(self, name : Any, val : Any) -> Any:
+
+    def modify_item(self, name : Any, f : Any) -> Any:
+```
+
+Extended item manipulation example:
+
+```python
+from asterix import *
+
+item_spec = CAT_048_1_31.spec('020')
+
+# create extended item (primary + 1 extension, all zero)
+item1 = item_spec((0,0))
+
+# get_item
+assert item1.get_item('TYP').to_uinteger() == 0
+assert item1.get_item('TST').to_uinteger() == 0
+assert item1.get_item('ADSB') is None
+
+# set_item works on primary part
+item2 = item1.set_item('TYP', 1)
+assert item2.get_item('TYP').to_uinteger() == 1
+
+# set_item does not work on extension
+# item3 = item1.set_item('TST', 1)  <- this is not possible
+
+# modify_item works on any subitem
+item3 = item1.modify_item('TST', lambda x: 1)   # modify with const(1)
+assert item3.get_item('TST').to_uinteger() == 1
+
+# if subitem is not present, modify_item has no effect
+item4 = item1.modify_item('ADSB', lambda x: 1)
+assert item4.get_item('ADSB') is None
 ```
 
 #### Repetitive
@@ -656,6 +816,30 @@ class Variation_XY(Repetitive):
         if isinstance(arg, tuple):
         if isinstance(arg, list):
         assert_never(arg)
+
+    def append_item(self, arg : Union[Variation_1, Variation_1_Arg]) -> 'Variation_XY':
+
+    def prepend_item(self, arg : Union[Variation_1, Variation_1_Arg]) -> 'Variation_XY':
+```
+
+Repetitive item manipulation example:
+
+```python
+from asterix import *
+
+item_spec = CAT_048_1_31.spec('250')
+
+# create repetitive item
+item1 = item_spec([0,1])
+assert len(item1) == 2
+assert item1[0].to_uinteger() == 0
+assert item1[1].to_uinteger() == 1
+
+item2 = item1.append_item(5)
+assert item2 == item_spec([0,1,5])
+
+item3 = item1.prepend_item(6)
+assert item3 == item_spec([6,0,1])
 ```
 
 #### Explicit
@@ -667,6 +851,19 @@ class Variation_XY(Explicit):
         if isinstance(arg, tuple):
         if isinstance(arg, bytes):
         assert_never(arg)
+```
+
+Explicit item manipulation example:
+
+```python
+from asterix import *
+
+item_spec = CAT_048_1_31.spec('RE')
+
+val = 0x01020304
+bs = val.to_bytes(4, 'big')
+i = item_spec(bs)   # create explicit item from bytes
+assert i.raw == bs  # check
 ```
 
 #### Compound
@@ -704,6 +901,31 @@ class Variation_XY(Compound):
     def del_item(self, name : Any) -> Any:
 
     def get_item(self, name : Any) -> Any:
+
+    def modify_item(self, name : Any, f : Any) -> Any:
+```
+
+Compound item manipulation example:
+
+```python
+from asterix import *
+
+item_spec = CAT_048_1_31.spec('120')
+item = item_spec()                              # create empty compound item
+
+assert item.get_item('CAL') is None                             # get_item
+item1 = item.set_item('CAL', 0)                                 # set_item
+assert item1.get_item('CAL').to_uinteger() == 0
+assert item1.del_item('CAL').get_item('CAL') is None            # del_item
+
+def succ(x : Any) -> Any:
+    return x.to_uinteger() + 1
+
+# modify_item (called on 2 items)
+item2 = item1.modify_item('CAL', succ).modify_item('RDS', succ)
+
+assert item2.get_item('CAL').to_uinteger() == 1     # updated item
+assert item2.get_item('RDS') is None                # not present
 ```
 
 #### Basic spec

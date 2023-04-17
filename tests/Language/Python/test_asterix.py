@@ -95,6 +95,9 @@ def test_group() -> None:
     assert i.set_item('A', 1) == S({'A': 1, 'B': -1})
     assert i.set_item('B', 1) == S({'A': -1, 'B': 1})
     assert i.set_item('A', 1).set_item('B', 1) == S({'A': 1, 'B': 1})
+    assert i.set_item('A', 1).get_item('A').to_uinteger() == 1
+
+    assert i.set_item('A', 1).modify_item('A', lambda x: x.to_uinteger()+1).get_item('A').to_uinteger() == 2
 
     # parse test
     raw = Bits.from_bytes(b'\x00\x00\x01')
@@ -109,9 +112,13 @@ def test_extended1() -> None:
     assert a == b
 
     assert a.get_item('A').to_uinteger() == 127
-    assert a.get_item('B') == None
-    assert a.get_item('C') == None
-    assert a.get_item('D') == None
+    assert a.get_item('B') is None
+    assert a.get_item('C') is None
+    assert a.get_item('D') is None
+
+    assert a.set_item('A', 1).get_item('A').to_uinteger() == 1
+    assert a.modify_item('A', lambda x: 1).get_item('A').to_uinteger() == 1
+    assert a.modify_item('B', lambda x: 1).get_item('B') is None
 
     # parse test
     raw1 = Bits.from_bytes(b'\xfe')
@@ -220,6 +227,9 @@ def test_repetitive() -> None:
     assert i[1].to_uinteger() == 2
     assert i[2].to_uinteger() == 3
 
+    assert i.append_item(0) == S([1,2,3,0])
+    assert i.prepend_item(0) == S([0,1,2,3])
+
     # parse test
     raw = Bits.from_bytes(b'\x03\x01\x02\x03')
     assert S.parse_bits(raw) == (i, Bits.empty())
@@ -290,6 +300,9 @@ def test_compound_items() -> None:
     assert S().set_item('C1', i1).get_item('C1') == i1
     assert S().set_item('C1', i1).get_item('C2') == None
     assert S().set_item('C1', i1).get_item('C3') == None
+
+    assert S().modify_item('C1', lambda x: 1) == S()
+    assert S({'C1': 1}).modify_item('C1', lambda x: 2) == S({'C1': 2})
 
 def test_record() -> None:
     rec = Spec.make_record({

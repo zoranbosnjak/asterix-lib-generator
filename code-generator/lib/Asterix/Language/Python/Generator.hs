@@ -221,6 +221,7 @@ handleGroup db vc lst = do
         , initFunc
         , getItem
         , setItem
+        , modifyItem
         ]
   where
     nLst = do
@@ -291,7 +292,6 @@ handleGroup db vc lst = do
                 pure $ "Literal[" <> escaped name <> "]"
 
     setItem = case length nLst of
-
         1 -> pyFunc "set_item" ["self", "name : Literal[" <> escaped name <> "]", "val : " <> arg]
             ("'" <> nameOf vc <> "'")
             "return self._set_item(name, val) # type: ignore"
@@ -312,6 +312,25 @@ handleGroup db vc lst = do
                 "return self._set_item(name, val)"
             ]
 
+    modifyItem = case length nLst of
+        1 -> pyFunc "modify_item" ["self", "name : Literal[" <> escaped name <> "]", "f : Any"]
+            ("'" <> nameOf vc <> "'")
+            "return self._modify_item(name, f) # type: ignore"
+          where
+            (_goff, _n, name, _title, _ix) = head nLst
+
+        _ -> blocksLn
+            [ blocksLn $ do
+                (_goff, _n, name, _title, _ix) <- nLst
+                pure $ do
+                    line "@overload"
+                    pyFunc "modify_item" ["self", "name : Literal[" <> escaped name <> "]", "f : Any"]
+                        ("'" <> nameOf vc <> "'")
+                        "..."
+            , pyFunc "modify_item" ["self", "name : Any", "f : Any"] "Any"
+                "return self._modify_item(name, f)"
+            ]
+
 handleExtended :: VariationDb -> VariationIx
     -> ExtendedType -> RegisterSize -> RegisterSize -> [[(GroupOffset, RegisterSize, Item)]]
     -> BlockM Builder ()
@@ -326,6 +345,8 @@ handleExtended db vc et n1 n2 grps = do
         , spec
         , initFunc
         , getItem
+        , setItem
+        , modifyItem
         ]
   where
     grps' :: [(Int, [(GroupOffset, RegisterSize, Item)])]
@@ -429,6 +450,52 @@ handleExtended db vc et n1 n2 grps = do
       where
         lst = nonSpare (join grps)
 
+    setItem = case length lst of
+        1 -> pyFunc "set_item" ["self", "name : Literal[" <> escaped name <> "]", "val : " <> arg]
+            ("'" <> nameOf vc <> "'")
+            "return self._set_item(name, val) # type: ignore"
+          where
+            (_goff, _n, name, _title, var) = head lst
+            ix = indexOf db var
+            arg = "Union[" <> nameOf ix <> ", " <> argOf ix <> "]"
+
+        _ -> blocksLn
+            [ blocksLn $ do
+                (_goff, _n, name, _title, var) <- lst
+                let ix = indexOf db var
+                    arg = "Union[" <> nameOf ix <> ", " <> argOf ix <> "]"
+                pure $ do
+                    line "@overload"
+                    pyFunc "set_item" ["self", "name : Literal[" <> escaped name <> "]", "val : " <> arg]
+                        ("'" <> nameOf vc <> "'")
+                        "..."
+            , pyFunc "set_item" ["self", "name : Any", "val : Any"] "Any"
+                "return self._set_item(name, val)"
+            ]
+      where
+        lst = nonSpare (head grps) -- only for primary part
+
+    modifyItem = case length lst of
+        1 -> pyFunc "modify_item" ["self", "name : Literal[" <> escaped name <> "]", "f : Any"]
+            ("'" <> nameOf vc <> "'")
+            "return self._modify_item(name, f) # type: ignore"
+          where
+            (_goff, _n, name, _title, _ix) = head lst
+
+        _ -> blocksLn
+            [ blocksLn $ do
+                (_goff, _n, name, _title, _ix) <- lst
+                pure $ do
+                    line "@overload"
+                    pyFunc "modify_item" ["self", "name : Literal[" <> escaped name <> "]", "f : Any"]
+                        ("'" <> nameOf vc <> "'")
+                        "..."
+            , pyFunc "modify_item" ["self", "name : Any", "f : Any"] "Any"
+                "return self._modify_item(name, f)"
+            ]
+      where
+        lst = nonSpare (join grps)
+
 handleRepetitive :: VariationDb -> VariationIx -> Int -> RegisterSize -> Variation -> BlockM Builder ()
 handleRepetitive db vc repByteSize varBitSize var = do
     typeAlias (argOf vc) arg
@@ -437,10 +504,13 @@ handleRepetitive db vc repByteSize varBitSize var = do
         , constants
         , spec
         , initFunc
+        , xPendItem "append_item"
+        , xPendItem "prepend_item"
         ]
   where
     iv = indexOf db var
-    arg = "List[Union[" <> nameOf iv <> ", " <> argOf iv <> "]]"
+    arg = "Union[" <> nameOf iv <> ", " <> argOf iv <> "]"
+    argList = "List[" <> arg <> "]"
 
     cnV = nameOf $ indexOf db var
 
@@ -454,10 +524,13 @@ handleRepetitive db vc repByteSize varBitSize var = do
         pyFunc "spec" ["cls"] ("Type[" <> cnV <> "]") $ do
             fmt ("return " % stext) cnV
 
-    initFunc = pyFunc "__init__" ["self", "arg : " <> arg] "None" $ do
+    initFunc = pyFunc "__init__" ["self", "arg : " <> argList] "None" $ do
         pyIf "isinstance(arg, tuple)" "super().__init__(*arg); return"
         pyIf "isinstance(arg, list)" "super().__init__(*self._from_list(arg)); return"
         "assert_never(arg)"
+
+    xPendItem f = pyFunc f ["self", "arg : " <> arg] ("'" <> nameOf vc <> "'") $ do
+        fmt ("return self._" % stext % "(arg) # type: ignore") f
 
 handleExplicit :: VariationIx -> BlockM Builder ()
 handleExplicit vc = do
@@ -488,6 +561,7 @@ handleCompound db vc mn fspec_max_bytes lst = do
         , setItem
         , delItem
         , getItem
+        , modifyItem
         ]
   where
     hdr = enclose a b $ mconcat $ do
@@ -579,6 +653,18 @@ handleCompound db vc mn fspec_max_bytes lst = do
                 ]
         , pyFunc "get_item" ["self", "name : Any"] "Any"
             "return self._get_item(name)"
+        ]
+
+    modifyItem = blocksLn
+        [ blocksLn $ do
+            (name, _title, _var, _fspec) <- catMaybes lst
+            pure $ do
+                line "@overload"
+                pyFunc "modify_item" ["self", "name : Literal[" <> escaped name <> "]", "f : Any"]
+                    ("'" <> nameOf vc <> "'")
+                    "..."
+        , pyFunc "modify_item" ["self", "name : Any", "f : Any"] "Any"
+            "return self._modify_item(name, f)"
         ]
 
 -- | Create 'Block', representing a 'Variation', call proper handlers.

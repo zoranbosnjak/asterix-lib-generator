@@ -459,6 +459,10 @@ class Group(Variation):
         items[name] = val
         return self.__class__(items) # type: ignore
 
+    def _modify_item(self, name : Any, f : Any) -> Any:
+        x = self._get_item(name)
+        return self._set_item(name, f(x))
+
 class Extended(Variation):
     no_trailing_fx : bool # See [ref:extended-no-trailing-fx].
     prim_bit_size : int
@@ -544,6 +548,17 @@ class Extended(Variation):
     def _get_item(self, name : Any) -> Any:
         return self._items.get(name)
 
+    def _set_item(self, name : Any, val : Any) -> Any:
+        items = self._items.copy()
+        items[name] = val
+        return self.__class__(items) # type: ignore
+
+    def _modify_item(self, name : Any, f : Any) -> Any:
+        x = self._items.get(name)
+        if x is None:
+            return self
+        return self._set_item(name, f(x))
+
 class Repetitive(Variation):
     rep_byte_size : int
     variation_bit_size : int
@@ -581,6 +596,14 @@ class Repetitive(Variation):
 
     def __getitem__(self, ix : int) -> Any:
         return self._items[ix]
+
+    def _append_item(self, arg : Any) -> Any:
+        items = self._items.copy()
+        return self.__class__(items + [arg]) # type: ignore
+
+    def _prepend_item(self, arg : Any) -> Any:
+        items = self._items.copy()
+        return self.__class__([arg] + items) # type: ignore
 
 class Explicit(Variation):
 
@@ -702,6 +725,12 @@ class Compound(Variation):
 
     def _get_item(self, name : ItemName) -> Any:
         return self._items.get(name)
+
+    def _modify_item(self, name : Any, f : Any) -> Any:
+        x = self._items.get(name)
+        if x is None:
+            return self
+        return self._set_item(name, f(x))
 
 T = TypeVar('T')
 class Datablock(Generic[T]):
