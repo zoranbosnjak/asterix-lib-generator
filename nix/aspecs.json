@@ -1,9 +1,9 @@
 {
   "url": "https://github.com/zoranbosnjak/asterix-specs.git",
-  "rev": "4771f1454d73d4b1bbe0ee814fae8f9acb94e623",
-  "date": "2023-04-25T08:43:09+02:00",
-  "path": "/nix/store/8bi8vaaz8xvm1ilsh25k6xnylilsdmi2-asterix-specs",
-  "sha256": "0l6pblxvvwk8151qidjjgi03qdz6gzfr0h8yvzlnjmhlvp3nvybl",
+  "rev": "3d75e32dc4b056cde3dcf513ede887b2007043b2",
+  "date": "2023-05-05T13:15:15+02:00",
+  "path": "/nix/store/p22sha32zgzbdp53kbba10vqz8i86bjc-asterix-specs",
+  "sha256": "0vxk2mmgzh2ryjr8wa59szjfp85viiclnjjrdvs4ha0srg591wsr",
   "fetchLFS": false,
   "fetchSubmodules": false,
   "deepClone": false,
