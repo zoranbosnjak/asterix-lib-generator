@@ -632,7 +632,7 @@ class Compound(Variation):
     fspec_fx : bool
     fspec_max_bytes : int
     subitems_list : List[Optional[Tuple[ItemName, Any]]]
-    subitems_dict : Dict[ItemName, Tuple[Any, int]]
+    subitems_dict : Dict[ItemName, Tuple[str, Any, int]]
 
     @classmethod
     def _parse_fspec(cls, s : Bits) -> Any:
@@ -681,7 +681,7 @@ class Compound(Variation):
 
     def _fspec(self, parts : List[ItemName]) -> Bits:
         d = self.__class__.subitems_dict
-        fspec = reduce(lambda a,b: a|b, [d[name][1] for name in parts], 0)
+        fspec = reduce(lambda a,b: a|b, [d[name][2] for name in parts], 0)
         n = self.__class__.fspec_max_bytes
         if self.__class__.fspec_fx:
             while (((fspec % 256) == 0) and (n>0)):
@@ -705,7 +705,7 @@ class Compound(Variation):
         return obj
 
     def _set_item(self, name : ItemName, val : Any) -> Any:
-        t, fspec_bit = self.__class__.subitems_dict[name]
+        _title, t, fspec_bit = self.__class__.subitems_dict[name]
         i = mk_item(t, val)
         items = self._items.copy()
         items[name] = i

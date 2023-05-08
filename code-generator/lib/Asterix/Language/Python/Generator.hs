@@ -594,11 +594,12 @@ handleCompound db vc mn fspec_max_bytes lst = do
         in mconcat $ fmap f fspecs
 
     subitemsDict = do
-        line "# name: (cls, fspec)"
+        line "# name: (title, cls, fspec)"
         enclose "subitems_dict = {" "}" $ mconcat $ do
-            (name, _title, var, fspec) <- catMaybes lst
-            pure $ fmt (stext % ": (" % stext % ", 0x" % stext % "),")
+            (name, title, var, fspec) <- catMaybes lst
+            pure $ fmt (stext % ": (" % stext % ", " % stext % ", 0x" % stext % "),")
                 (escaped name)
+                (escaped title)
                 (nameOf $ indexOf db var)
                 (showFspec fspec)
 
