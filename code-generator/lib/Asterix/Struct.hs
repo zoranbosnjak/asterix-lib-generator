@@ -99,7 +99,13 @@ data Uap
 data AstType
     = AstCat Uap
     | AstRef Variation
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
+
+instance Ord AstType where
+    compare (AstCat _) (AstRef _) = LT
+    compare (AstRef _) (AstCat _) = GT
+    compare (AstCat _) (AstCat _) = EQ
+    compare (AstRef _) (AstRef _) = EQ
 
 -- | Derived Asterix structure
 data Asterix = Asterix
