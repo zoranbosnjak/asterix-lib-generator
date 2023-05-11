@@ -26,9 +26,20 @@ let
     then "unknown"
     else "${gitrev}";
 
+  libPython = import ../support/Language/Python/lib.nix { inherit reference timestamp codeGenerator aspecsDir; };
+
   envVars = ''
     export ASTERIX_SPECS=${aspecsDir}
     export SPECS=$(find ${aspecsDir}/specs/cat* | grep "\.ast")
+    export REFERENCE=${reference}
+    export ASTERIX_SPECS_REVISION=${aspecsRef.rev}
+    export TIMESTAMP=$(cat ${timestamp}/timestamp)
+    export VERSION=$(${codeGenerator}/bin/ast-code-generator \
+      --language test \
+      --timestamp $TIMESTAMP \
+      --reference $REFERENCE \
+      $SPECS \
+      --show-version)
   '';
 
   deps = [
@@ -41,8 +52,6 @@ let
     buildInputs = site.env.nativeBuildInputs ++ deps;
     shellHook = envVars;
   };
-
-  libPython = import ../support/Language/Python/lib.nix { inherit reference timestamp codeGenerator aspecsDir; };
 
   drv = pkgs.stdenv.mkDerivation {
     name = "asterix-lib-generator-website";

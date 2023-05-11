@@ -20,9 +20,6 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
-import qualified Data.Time.Clock.POSIX as Time
-import qualified Data.Time.Clock as Clock
-import qualified Data.Time.Calendar
 import           Numeric (showHex)
 import           Formatting as F
 import           Options.Applicative as Opt
@@ -861,18 +858,9 @@ programManifest specs = enclose "manifest = {" "}" $ do
             let edition = sformat ("'" % int % "." % int % "'") eMaj eMin
             pure $ fmt stext ( edition <> ": " <> cls <> ",")
 
-versionText :: Integer -> Text
-versionText unixtime = sformat
-    (int % left 2 '0' % left 2 '0' % "." % int)
-    year month day (seconds :: Integer)
-  where
-    Clock.UTCTime uDay uTime = Time.posixSecondsToUTCTime $ fromIntegral unixtime
-    (year, month, day) = Data.Time.Calendar.toGregorian uDay
-    seconds = round uTime
-
-programVersion :: Integer -> Text -> BlockM Builder ()
-programVersion unixtime reference = blocksLn
-    [ fmt ("VERSION = '" % stext % "'") (versionText unixtime)
+programVersion :: Text -> Text -> BlockM Builder ()
+programVersion versionText reference = blocksLn
+    [ fmt ("VERSION = '" % stext % "'") versionText
     , fmt ("REFERENCE = '" % stext % "'") reference
     ]
 
@@ -884,13 +872,13 @@ compareSpecs a b
    <> compare (astEdition a) (astEdition b)
 
 -- | Create generated code.
-mkGeneratedCode :: Bool -> Integer -> Text -> Set Asterix -> BlockM Builder ()
-mkGeneratedCode includeComments unixtime reference specsSet = blocksLn
+mkGeneratedCode :: Bool -> Text -> Text -> Set Asterix -> BlockM Builder ()
+mkGeneratedCode includeComments versionText reference specsSet = blocksLn
     [ "# --- Generated code ---"
     , programVariations includeComments db
     , programSpecs db specs
     , programManifest specs
-    , programVersion unixtime reference
+    , programVersion versionText reference
     ]
   where
     db :: VariationDb
@@ -904,12 +892,12 @@ genericCodeBS :: BS.ByteString
 genericCodeBS = $(makeRelativeToProject "lib/Asterix/Language/Python/generic.py" >>= embedFile)
 
 -- | Source code generator entry point.
-mkCode :: Bool -> Integer -> Text -> Set Asterix -> TL.Text
-mkCode includeComments unixtime reference specs =
+mkCode :: Bool -> Text -> Text -> Set Asterix -> TL.Text
+mkCode includeComments versionText reference specs =
     headerCode <> "\n" <> genericCode <> generatedCode
   where
     genericCode = either (error . show) id $ TL.decodeUtf8' $ BSL.fromStrict $ genericCodeBS
-    generatedCode = BL.toLazyText $ renderBlockM 4 $ mkGeneratedCode includeComments unixtime reference specs
+    generatedCode = BL.toLazyText $ renderBlockM 4 $ mkGeneratedCode includeComments versionText reference specs
     headerCode = mconcat $ intersperse "\n"
         [ "#!/usr/bin/env python"
         , "# -*- coding: utf-8 -*-"

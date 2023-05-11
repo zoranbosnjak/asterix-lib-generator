@@ -4,6 +4,10 @@ title: Asterix python library
 
 # Asterix library for `python`
 
+- LIBRARY VERSION: `$version$`
+- LIBRARY GIT REVISION: `$reference$`
+- ASTERIX SPECS GIT REVISION: `$astReference$`
+
 Features:
 
 - parse asterix data to datablocks and records (asterix receiver)
@@ -393,12 +397,12 @@ print(rec.get_item('010').get_item('SA').to_uinteger())
 ```
 
 ```
-$ python some-asterix-related-program.py
+$$ python some-asterix-related-program.py
 ... results in runtime error (line number 3)
 ... after fixing the first problem and re-running,
 ... another runtime error is generated on line number 4
 
-$ mypy some-asterix-related-program.py
+$$ mypy some-asterix-related-program.py
 ... detects both problems, without actually running the program
 Found 2 errors in 1 file (checked 1 source file)
 ```
