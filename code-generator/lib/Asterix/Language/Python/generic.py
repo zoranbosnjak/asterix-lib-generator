@@ -40,6 +40,8 @@ class RawDatablock:
         if len(s) < 3:
             raise AsterixOverflow('datablock header')
         n = int.from_bytes(s[1:3], 'big')
+        if n < 3:
+            raise AsterixError('datablock length < 3')
         if len(s) < n:
             raise AsterixOverflow('datablock records')
         (a,b) = (s[0:n], s[n:])
