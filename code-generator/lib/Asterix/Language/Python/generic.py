@@ -492,6 +492,8 @@ class Extended(Variation):
                 n += (m+1)
                 if fx.to_uinteger() == 0:
                     break
+                if is_last(grp) and fx.to_uinteger() == 1:
+                    raise AsterixError('unexpected fx bit set')
         (a,b) = s.split_at(n)
         return (cls((a, items)), b) # type: ignore
 
@@ -781,6 +783,7 @@ class Basic(AsterixSpec):
                 (rec, s) = cls.variation.parse_bits(s)
             elif hasattr(cls, 'uaps'):
                 result = None
+                errors = {}
                 # UAP is not specified, try each in sequence
                 if uap is None:
                     for (name, var) in cls.uaps.items():
@@ -791,10 +794,10 @@ class Basic(AsterixSpec):
                             if cls._is_valid(rec):
                                 (result, s) = (rec, s2)
                                 break
-                        except AsterixError:
-                            pass
+                        except AsterixError as e:
+                            errors[name] = e
                     if result is None:
-                        raise AsterixError('unable to parse with any UAP')
+                        raise AsterixError('unable to parse with any UAP, {}'.format(errors))
                 # use specified UAP
                 else:
                     var = cls.uaps[uap]
