@@ -89,6 +89,11 @@ items
             element 8
                 raw
 
+    031 ""
+        repetitive fx
+            element 7
+                raw
+
     040 ""
         explicit
 
@@ -121,6 +126,7 @@ uap
     020
     021
     030
+    031
     040
     050
 

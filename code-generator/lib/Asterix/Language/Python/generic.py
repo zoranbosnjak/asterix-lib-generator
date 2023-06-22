@@ -564,20 +564,35 @@ class Extended(Variation):
         return self._set_item(name, f(x))
 
 class Repetitive(Variation):
-    rep_byte_size : int
+    rep_byte_size : Optional[int]
     variation_bit_size : int
     variation_type : Any
 
     @classmethod
     def parse_bits(cls, s : Bits) -> Any:
-        rbs = cls.rep_byte_size * 8
-        n = rbs
+        bs = cls.rep_byte_size
         items = []
-        (m,reminder) = s.split_at(rbs)
-        for i in range(m.to_uinteger()):
-            (item, reminder) = cls.variation_type.parse_bits(reminder)
-            items.append(item)
-            n += len(item.unparse_bits())
+        # parsing with FX
+        if bs is None:
+            n = 0
+            reminder = s
+            while True:
+                (item, reminder) = cls.variation_type.parse_bits(reminder)
+                (fx, reminder) = reminder.split_at(1)
+                items.append(item)
+                n += len(item.unparse_bits()) + 1
+                if fx.to_uinteger() == 0:
+                    break
+        # parsing as regular repetitive
+        else:
+            rbs = bs * 8
+            n = rbs
+            (m,reminder) = s.split_at(rbs)
+            for i in range(m.to_uinteger()):
+                (item, reminder) = cls.variation_type.parse_bits(reminder)
+                items.append(item)
+                n += len(item.unparse_bits())
+
         (a,b) = s.split_at(n)
         return (cls((a, items)), b) # type: ignore
 
@@ -588,9 +603,17 @@ class Repetitive(Variation):
     def _from_list(self, lst : List[Any]) -> Tuple[Bits, Any]:
         cls = self.__class__.variation_type
         items = [mk_item(cls,arg) for arg in lst]
-        bits = Bits.join([i.unparse_bits() for i in items])
-        n = Bits.from_uinteger(len(lst), 0, self.__class__.rep_byte_size*8)
-        return(n+bits, items)
+        bs = self.__class__.rep_byte_size
+        if bs is None:
+            blist = []
+            for (ix, i) in enumerate(items):
+                fx = Bits.fx(True if ((ix+1) < len(items)) else False)
+                blist.append(i.unparse_bits() + fx)
+            return (Bits.join(blist), items)
+        else:
+            bits = Bits.join([i.unparse_bits() for i in items])
+            n = Bits.from_uinteger(len(lst), 0, bs*8)
+            return(n+bits, items)
 
     def __len__(self) -> Any:
         return len(self._items)

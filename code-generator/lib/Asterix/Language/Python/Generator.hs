@@ -26,7 +26,7 @@ import           Options.Applicative as Opt
 import           Data.FileEmbed (makeRelativeToProject, embedFile)
 
 import           Asterix.Specs
-                    (Name, RegisterSize, Title, ExtendedType(..), Edition(..), UapSelector(..))
+                    (Name, RegisterSize, Title, ExtendedType(..), RepetitiveType(..), Edition(..), UapSelector(..))
 import           Asterix.Indent
 
 import           Asterix.Struct
@@ -493,8 +493,8 @@ handleExtended db vc et n1 n2 grps = do
       where
         lst = nonSpare (join grps)
 
-handleRepetitive :: VariationDb -> VariationIx -> Int -> RegisterSize -> Variation -> BlockM Builder ()
-handleRepetitive db vc repByteSize varBitSize var = do
+handleRepetitive :: VariationDb -> VariationIx -> RepetitiveType -> RegisterSize -> Variation -> BlockM Builder ()
+handleRepetitive db vc rt varBitSize var = do
     typeAlias (argOf vc) arg
     pyClass (nameOf vc) ["Repetitive"] $ blocksLn
         [ fmt "variation = 'Repetitive'"
@@ -512,7 +512,13 @@ handleRepetitive db vc repByteSize varBitSize var = do
     cnV = nameOf $ indexOf db var
 
     constants = do
-        fmt ("rep_byte_size = " % int) repByteSize
+        case rt of
+            RepetitiveRegular repBitSize -> do
+                let (repByteSize, b) = divMod repBitSize 8
+                assert "repetition size" (b==0)
+                fmt ("rep_byte_size = " % int) repByteSize
+            RepetitiveFx -> do
+                fmt "rep_byte_size = None"
         fmt ("variation_bit_size = " % int) varBitSize
         fmt ("variation_type = " % stext) cnV
 
@@ -671,7 +677,7 @@ variationBlock db vc variation = case variation of
     Element o n cont -> handleElement vc o n cont
     Group lst -> handleGroup db vc lst
     Extended et n1 n2 grps -> handleExtended db vc et n1 n2 grps
-    Repetitive repByteSize varBitSize var2 -> handleRepetitive db vc repByteSize varBitSize var2
+    Repetitive rt varBitSize var2 -> handleRepetitive db vc rt varBitSize var2
     Explicit -> handleExplicit vc
     Compound mn fspec_max_bytes lst -> handleCompound db vc mn fspec_max_bytes lst
 

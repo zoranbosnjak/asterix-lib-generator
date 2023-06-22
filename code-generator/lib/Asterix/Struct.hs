@@ -75,7 +75,7 @@ data Variation
     | Group [(GroupOffset, A.RegisterSize, Item)]
     | Extended A.ExtendedType A.RegisterSize A.RegisterSize
         [[(GroupOffset, A.RegisterSize, Item)]]
-    | Repetitive Int A.RegisterSize Variation
+    | Repetitive A.RepetitiveType A.RegisterSize Variation
     | Explicit
     | Compound (Maybe ByteSize) ByteSize [Maybe (A.Name, A.Title, Variation, Fspec)]
     deriving (Eq, Ord, Show)
@@ -207,13 +207,14 @@ deriveVariationS path = \case
             i <- deriveItemS path item
             rest <- handleGroup items
             pure ((unOctetOffset o, sizeOf i, i):rest)
-    A.Repetitive n var -> do
+    A.Repetitive rt var -> do
         byteAligned path "repetitive (pre)"
         var2 <- (deriveVariationS path) var
+        case rt of
+            A.RepetitiveRegular _ -> pure ()
+            A.RepetitiveFx -> modify (<> octetOffset 1) -- FX bit
         byteAligned path "repetitive (post)"
-        let (a,b) = divMod n 8
-        assert "repetition size" (b==0)
-        pure $ Repetitive a (sizeOf $ Item mempty mempty var2) var2
+        pure $ Repetitive rt (sizeOf $ Item mempty mempty var2) var2
     A.Explicit -> do
         byteAligned path "explicit (pre)"
         pure Explicit

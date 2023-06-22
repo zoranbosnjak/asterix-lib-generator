@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               generator
-version:            0.3.1
+version:            0.4.0
 synopsis:           Asterix source code generator.
 -- description:
 homepage:           https://zoranbosnjak.github.io/asterix-lib-generator/

@@ -234,6 +234,25 @@ def test_repetitive() -> None:
     raw = Bits.from_bytes(b'\x03\x01\x02\x03')
     assert S.parse_bits(raw) == (i, Bits.empty())
 
+def test_repetitive_fx() -> None:
+    S = Spec.spec('031')
+    I = S.spec()
+    i = S([I(1), I(2), 3])
+    assert str(i.unparse_bits()) == '00000011 00000101 00000110'
+    assert len(i) == 3
+    for (x, subitem) in zip([1,2,3], i):
+        assert subitem.to_uinteger() == x
+    assert i[0].to_uinteger() == 1
+    assert i[1].to_uinteger() == 2
+    assert i[2].to_uinteger() == 3
+
+    assert i.append_item(0) == S([1,2,3,0])
+    assert i.prepend_item(0) == S([0,1,2,3])
+
+    # parse test
+    raw = Bits.from_bytes(b'\x03\x05\x06')
+    assert S.parse_bits(raw) == (i, Bits.empty())
+
 def test_explicit() -> None:
     S = Spec.spec('040')
     val = 0x01020304
