@@ -20,7 +20,7 @@ main :: IO ()
 main = do
     E.setLocaleEncoding E.utf8
     reference <- getEnvVariableExpr "REFERENCE"
-    version <- getEnvVariableExpr "VERSION"
+    appVersion <- getEnvVariableExpr "VERSION"
     asterixSpecsRevision <- getEnvVariableExpr "ASTERIX_SPECS_REVISION"
     hakyllWith config $ do
         match "css/*" $ do
@@ -41,7 +41,7 @@ main = do
         let files =
                 [ ("python", defaultContext
                    <> constField "reference" reference
-                   <> constField "version" version
+                   <> constField "version" appVersion
                    <> constField "astReference" asterixSpecsRevision
                     )
                 ]

@@ -15,6 +15,16 @@ import re
 Raw : TypeAlias = int
 ItemName : TypeAlias = str
 
+@dataclass
+class ParsingOptions:
+    no_check_spare : bool       # do not check spare bits value (zero)
+
+    @classmethod
+    def default(cls) -> 'ParsingOptions':
+        return ParsingOptions(
+            no_check_spare = False,
+        )
+
 class AsterixError(Exception):
     """Base class for asterix related errors."""
     def __init__(self, msg : Optional[str]=None):
@@ -211,10 +221,11 @@ class Spare:
     bit_offset8 : int
     bit_size : int
 
-    def parse_bits(self, s : Bits) -> Any:
+    def parse_bits(self, s : Bits, opt : ParsingOptions) -> Any:
         n = self.bit_size
-        if s.take(n).to_uinteger() != 0:
-            raise AsterixError('unexpected non-zero spare item')
+        if not opt.no_check_spare:
+            if s.take(n).to_uinteger() != 0:
+                raise AsterixError('unexpected non-zero spare item')
         return n
 
     def unparse_bits(self) -> Bits:
@@ -342,7 +353,7 @@ class Element(Variation):
     quantity : Quantity
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
         n = cls.bit_size
         (a,b) = s.split_at(n)
         return (cls(a), b)
@@ -417,18 +428,18 @@ def _raw_to_items(lst : List[Union[Spare, Tuple[ItemName, Any]]], raw : Raw) -> 
         assert_never(x)
     return items
 
-def _parse_group(s, lst):   # type: ignore
+def _parse_group(s, lst, opt):   # type: ignore
     """Helper function for 'Group' and 'Extended'."""
     reminder = s
     items = {}
     n = 0
     for i in lst:
         if isinstance(i, Spare):
-            result = i.parse_bits(reminder)
+            result = i.parse_bits(reminder, opt)
             reminder = reminder.drop(result)
             n += result
         else:
-            (item, reminder) = i[1].parse_bits(reminder)
+            (item, reminder) = i[1].parse_bits(reminder, opt)
             items[i[0]] = item
             n += len(item.unparse_bits())
     return (n, items)
@@ -438,8 +449,8 @@ class Group(Variation):
     subitems_dict : Dict[ItemName, Tuple[str, Any, int, int]]
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
-        (n, items) = _parse_group(s, cls.subitems_list) # type: ignore
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
+        (n, items) = _parse_group(s, cls.subitems_list, opt) # type: ignore
         (a, b) = s.split_at(n)
         return (cls((a, items)), b) # type: ignore
 
@@ -474,14 +485,14 @@ class Extended(Variation):
     subitems_dict : Dict[ItemName, Tuple[str, Any, int, int]]
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
         def is_last(grp : List[Any]) -> bool:
             return grp == cls.subitems_list[-1]
         reminder = s
         items = {}
         n = 0
         for grp in cls.subitems_list:
-            (m, sub) = _parse_group(reminder, grp) # type: ignore
+            (m, sub) = _parse_group(reminder, grp, opt) # type: ignore
             reminder = reminder.drop(m)
             items.update(sub)
             if is_last(grp) and cls.no_trailing_fx:
@@ -569,7 +580,7 @@ class Repetitive(Variation):
     variation_type : Any
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
         bs = cls.rep_byte_size
         items = []
         # parsing with FX
@@ -577,7 +588,7 @@ class Repetitive(Variation):
             n = 0
             reminder = s
             while True:
-                (item, reminder) = cls.variation_type.parse_bits(reminder)
+                (item, reminder) = cls.variation_type.parse_bits(reminder, opt)
                 (fx, reminder) = reminder.split_at(1)
                 items.append(item)
                 n += len(item.unparse_bits()) + 1
@@ -589,7 +600,7 @@ class Repetitive(Variation):
             n = rbs
             (m,reminder) = s.split_at(rbs)
             for i in range(m.to_uinteger()):
-                (item, reminder) = cls.variation_type.parse_bits(reminder)
+                (item, reminder) = cls.variation_type.parse_bits(reminder, opt)
                 items.append(item)
                 n += len(item.unparse_bits())
 
@@ -635,7 +646,7 @@ class Repetitive(Variation):
 class Explicit(Variation):
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
         (a,b) = s.split_at(8)
         n = a.to_uinteger() * 8
         (a,b) = s.split_at(n)
@@ -662,7 +673,7 @@ class Compound(Variation):
     subitems_dict : Dict[ItemName, Tuple[str, Any, int]]
 
     @classmethod
-    def _parse_fspec(cls, s : Bits) -> Any:
+    def _parse_fspec(cls, s : Bits, opt : ParsingOptions) -> Any:
         reminder = s
         if cls.fspec_fx:
             cnt = 0
@@ -682,8 +693,8 @@ class Compound(Variation):
             return (n, list(s.take(n)))
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
-        result = cls._parse_fspec(s)
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
+        result = cls._parse_fspec(s, opt)
         (n,fspec) = result
         items = {}
         reminder = s.drop(n)
@@ -693,7 +704,7 @@ class Compound(Variation):
             if i is None:
                 raise AsterixError('fx bit set for non-defined item')
             (subname, subcls) = i
-            result = subcls.parse_bits(reminder)
+            result = subcls.parse_bits(reminder, opt)
             (subitem, reminder) = result
             items[subname] = subitem
             n += len(subitem.unparse_bits())
@@ -796,14 +807,14 @@ class Basic(AsterixSpec):
     uap_selector_table : Any
 
     @classmethod
-    def _parse(cls, raw_db : RawDatablock, uap : Optional[str] = None) -> Any:
+    def _parse(cls, raw_db : RawDatablock, opt : ParsingOptions, uap : Optional[str] = None) -> Any:
         if raw_db.category != cls.cat:
             raise AsterixError('Wrong category')
         s = Bits.from_bytes(raw_db.raw_records)
         records = []
         while len(s) > 0:
             if hasattr(cls, 'variation'):
-                (rec, s) = cls.variation.parse_bits(s)
+                (rec, s) = cls.variation.parse_bits(s, opt)
             elif hasattr(cls, 'uaps'):
                 result = None
                 errors = {}
@@ -811,7 +822,7 @@ class Basic(AsterixSpec):
                 if uap is None:
                     for (name, var) in cls.uaps.items():
                         try:
-                            (rec, s2) = var.parse_bits(s)
+                            (rec, s2) = var.parse_bits(s, opt)
                             # parsing alone is not sufficient,
                             # need to confirm UAP selector
                             if cls._is_valid(rec):
@@ -824,7 +835,7 @@ class Basic(AsterixSpec):
                 # use specified UAP
                 else:
                     var = cls.uaps[uap]
-                    (rec, s) = var.parse_bits(s)
+                    (rec, s) = var.parse_bits(s, opt)
                     # if selector is available, validate
                     if not cls.uap_selector_item is None:
                         if not cls._is_valid(rec):

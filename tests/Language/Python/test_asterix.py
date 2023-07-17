@@ -10,24 +10,26 @@ from asterix import *
 Spec = CAT_000_1_0
 Ref =  REF_000_1_0
 
+opt = ParsingOptions.default()
+
 def test_raw() -> None:
     I = Spec.spec('000')
     i0 = I(0)
     assert i0.to_uinteger() == 0
     assert str(i0.unparse_bits()) == '00000000'
-    assert I.parse_bits(i0.unparse_bits()) == (i0, Bits.empty())
+    assert I.parse_bits(i0.unparse_bits(), opt) == (i0, Bits.empty())
 
     i1 = I(-1)
     assert i1.to_uinteger() == 255
     assert str(i1.unparse_bits()) == '11111111'
-    assert I.parse_bits(i1.unparse_bits()) == (i1, Bits.empty())
+    assert I.parse_bits(i1.unparse_bits(), opt) == (i1, Bits.empty())
 
     raw = Bits.from_bytes(b'\xa5\x5a')
-    assert I.parse_bits(raw) == (I(0xa5), raw.drop(8))
+    assert I.parse_bits(raw, opt) == (I(0xa5), raw.drop(8))
 
     for i in range(8):
         with pytest.raises(AsterixError):
-            I.parse_bits(raw.take(i))
+            I.parse_bits(raw.take(i), opt)
 
 def test_table() -> None:
     I = Spec.spec('001')
@@ -101,7 +103,7 @@ def test_group() -> None:
 
     # parse test
     raw = Bits.from_bytes(b'\x00\x00\x01')
-    assert S.parse_bits(raw) == (S(0), raw.drop(16))
+    assert S.parse_bits(raw, opt) == (S(0), raw.drop(16))
 
 def test_extended1() -> None:
     S = Spec.spec('020')
@@ -123,9 +125,9 @@ def test_extended1() -> None:
     # parse test
     raw1 = Bits.from_bytes(b'\xfe')
     raw2 = Bits.from_bytes(b'\xff')
-    assert S.parse_bits(raw1) == (S(-1), Bits.empty())
+    assert S.parse_bits(raw1, opt) == (S(-1), Bits.empty())
     with pytest.raises(AsterixError):
-        S.parse_bits(raw2)
+        S.parse_bits(raw2, opt)
 
 def test_extended2() -> None:
     S = Spec.spec('020')
@@ -142,7 +144,7 @@ def test_extended2() -> None:
 
     # parse test
     raw = Bits.from_bytes(b'\xff\xfe\x00')
-    assert S.parse_bits(raw) == (a, raw.drop(16))
+    assert S.parse_bits(raw, opt) == (a, raw.drop(16))
 
 def test_extended3() -> None:
     S = Spec.spec('020')
@@ -159,7 +161,7 @@ def test_extended3() -> None:
 
     # parse test
     raw = Bits.from_bytes(b'\xff\xff\x7e')
-    assert S.parse_bits(raw) == (a, raw.drop(24))
+    assert S.parse_bits(raw, opt) == (a, raw.drop(24))
 
 def test_extended_no_trailing_fx1() -> None:
     S = Spec.spec('021')
@@ -177,9 +179,9 @@ def test_extended_no_trailing_fx1() -> None:
     # parse test
     raw1 = Bits.from_bytes(b'\xfe')
     raw2 = Bits.from_bytes(b'\xff')
-    assert S.parse_bits(raw1) == (S(-1), Bits.empty())
+    assert S.parse_bits(raw1, opt) == (S(-1), Bits.empty())
     with pytest.raises(AsterixError):
-        S.parse_bits(raw2)
+        S.parse_bits(raw2, opt)
 
 def test_extended_no_trailing_fx2() -> None:
     S = Spec.spec('021')
@@ -196,7 +198,7 @@ def test_extended_no_trailing_fx2() -> None:
 
     # parse test
     raw = Bits.from_bytes(b'\xff\xfe\x00')
-    assert S.parse_bits(raw) == (a, raw.drop(16))
+    assert S.parse_bits(raw, opt) == (a, raw.drop(16))
 
 def test_extended_no_trailing_fx3() -> None:
     S = Spec.spec('021')
@@ -213,7 +215,7 @@ def test_extended_no_trailing_fx3() -> None:
 
     # parse test
     raw = Bits.from_bytes(b'\xff\xff\x3f')
-    assert S.parse_bits(raw) == (a, raw.drop(24))
+    assert S.parse_bits(raw, opt) == (a, raw.drop(24))
 
 def test_repetitive() -> None:
     S = Spec.spec('030')
@@ -232,7 +234,7 @@ def test_repetitive() -> None:
 
     # parse test
     raw = Bits.from_bytes(b'\x03\x01\x02\x03')
-    assert S.parse_bits(raw) == (i, Bits.empty())
+    assert S.parse_bits(raw, opt) == (i, Bits.empty())
 
 def test_repetitive_fx() -> None:
     S = Spec.spec('031')
@@ -251,7 +253,7 @@ def test_repetitive_fx() -> None:
 
     # parse test
     raw = Bits.from_bytes(b'\x03\x05\x06')
-    assert S.parse_bits(raw) == (i, Bits.empty())
+    assert S.parse_bits(raw, opt) == (i, Bits.empty())
 
 def test_explicit() -> None:
     S = Spec.spec('040')
@@ -263,7 +265,7 @@ def test_explicit() -> None:
 
     # parse test
     raw = Bits.from_bytes(b'\x05\x01\x02\x03\x04')
-    assert S.parse_bits(raw) == (i, Bits.empty())
+    assert S.parse_bits(raw, opt) == (i, Bits.empty())
 
 def test_empty_compound() -> None:
     S = Spec.spec('050')
@@ -296,16 +298,16 @@ def test_compound_create() -> None:
     # parse test
     for i in [i1, i2, i3, i4]:
         raw = i.unparse_bits()
-        (a,b) = S.parse_bits(raw)
-        assert S.parse_bits(raw) == (i, Bits.empty())
+        (a,b) = S.parse_bits(raw, opt)
+        assert S.parse_bits(raw, opt) == (i, Bits.empty())
 
 def test_ref() -> None:
     S = Ref
     i = S.make_extended({'A': 1, 'B': 2})
     s_bits = i.unparse_bits()
     assert str(s_bits) == '10100000 00000001 00000010'
-    assert S.parse_bits(s_bits) == (i, Bits.empty())
-    assert S.parse(s_bits.to_bytes()) == i
+    assert S.parse_bits(s_bits, opt) == (i, Bits.empty())
+    assert S.parse(s_bits.to_bytes(), opt) == i
 
 def test_compound_items() -> None:
     S = Spec.spec('050')
@@ -332,7 +334,7 @@ def test_record() -> None:
     assert rec.get_item('010').get_item('SIC').to_uinteger() == 2
     assert rec.get_item('020') == None
 
-    assert Spec.parse_bits(rec.unparse_bits()) == (rec, Bits.empty())
+    assert Spec.parse_bits(rec.unparse_bits(), opt) == (rec, Bits.empty())
 
 def test_category() -> None:
     S0 = CAT_000_1_0
@@ -341,5 +343,29 @@ def test_category() -> None:
     db = S2.make_datablock(rec)
     raw_datablocks = RawDatablock.parse(db.unparse())
     with pytest.raises(AsterixError):   # wrong category
-        raw = S0.parse(raw_datablocks[0])
+        raw = S0.parse(raw_datablocks[0], opt)
+
+def test_opt_spare() -> None:
+    opt1 = ParsingOptions(no_check_spare = False)
+    opt2 = ParsingOptions(no_check_spare = True)
+
+    S = Spec.spec('011')
+    i = S({'A': -1, 'B': -1})
+
+    # normal case
+    raw = Bits.from_bytes(b'\xfe\x7f')
+    assert S.parse_bits(raw, opt1) == (i, Bits.empty())
+    assert S.parse_bits(raw, opt2) == (i, Bits.empty())
+
+    # a case with non-zero spare bits
+    raw = Bits.from_bytes(b'\xff\xff')
+    # error in case of 'check_spare'
+    with pytest.raises(AsterixError):
+        S.parse_bits(raw, opt1)
+    # no error in case of 'no_check_spare'
+    # we can compare individual subitems
+    (i2, remaining) = S.parse_bits(raw, opt2)
+    assert remaining == Bits.empty()
+    assert i2.get_item('A') == i.get_item('A')
+    assert i2.get_item('B') == i.get_item('B')
 

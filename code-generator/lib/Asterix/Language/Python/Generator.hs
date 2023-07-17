@@ -769,16 +769,16 @@ handleSpec db ast = case astType ast of
     fParseSingle arg = do
         line "@classmethod"
         pyFunc "parse"
-            ["cls", "val : RawDatablock"]
+            ["cls", "val : RawDatablock", "opt : ParsingOptions"]
             ("Datablock[" <> arg <> "]")
-            "return cls._parse(val) # type: ignore"
+            "return cls._parse(val, opt) # type: ignore"
 
     fParseMultiple uaps msel = do
         line "@classmethod"
         pyFunc "parse"
-            ["cls", "val : RawDatablock", "uap : " <> uapArg]
+            ["cls", "val : RawDatablock", "opt : ParsingOptions", "uap : " <> uapArg]
             "Any"
-            "return cls._parse(val, uap=uap)"
+            "return cls._parse(val, opt, uap=uap)"
       where
         uapSelection = tList [T.pack (show name) | name <- fmap fst uaps]
         uapArg = case msel of
@@ -795,10 +795,10 @@ handleSpec db ast = case astType ast of
     fParseExpansion cls = do
         line "@classmethod"
         pyFunc "parse"
-            ["cls", "val : bytes"]
+            ["cls", "val : bytes", "opt : ParsingOptions"]
             cls $ do
                 line "s = Bits.from_bytes(val)"
-                fmt ("(rec, s2) = " % stext % ".parse_bits(s)") cls
+                fmt ("(rec, s2) = " % stext % ".parse_bits(s, opt)") cls
                 pyIf "len(s2) != 0"
                     "raise AsterixError('unable to parse expansion')"
                 line "return rec # type: ignore"

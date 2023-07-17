@@ -7,6 +7,8 @@ import pytest
 
 from asterix import *
 
+opt = ParsingOptions.default()
+
 def test_single() -> None:
     """ Single UAP
         - building is always safe
@@ -24,7 +26,7 @@ def test_single() -> None:
     assert db == Spec.make_datablock([rec])
     assert db.records == [rec]
     rawdb = RawDatablock(db.unparse())
-    assert Spec.parse(rawdb) == db
+    assert Spec.parse(rawdb, opt) == db
 
 def test_multiple_selector() -> None:
     """ Multiple UAPS, with UAP selector
@@ -45,10 +47,10 @@ def test_multiple_selector() -> None:
     assert db == Spec.make_datablock([rec1a])
     assert db.records == [rec1a]
     rawdb = RawDatablock(db.unparse())
-    assert Spec.parse(rawdb) == db
-    assert Spec.parse(rawdb, uap='uap0') == db
+    assert Spec.parse(rawdb, opt) == db
+    assert Spec.parse(rawdb, opt, uap='uap0') == db
     with pytest.raises(AsterixError):
-        Spec.parse(rawdb, uap='uap1') # wrong UAP
+        Spec.parse(rawdb, opt, uap='uap1') # wrong UAP
     assert Spec.is_valid(rec1a)
 
     # uap 1
@@ -61,10 +63,10 @@ def test_multiple_selector() -> None:
     assert db == Spec.make_datablock([rec1b])
     assert db.records == [rec1b]
     rawdb = RawDatablock(db.unparse())
-    assert Spec.parse(rawdb) == db
-    assert Spec.parse(rawdb, uap='uap1') == db
+    assert Spec.parse(rawdb, opt) == db
+    assert Spec.parse(rawdb, opt, uap='uap1') == db
     with pytest.raises(AsterixError):
-        Spec.parse(rawdb, uap='uap0') # wrong UAP
+        Spec.parse(rawdb, opt, uap='uap0') # wrong UAP
     assert Spec.is_valid(rec1b)
 
     # wrong UAP selection
@@ -93,7 +95,7 @@ def test_multiple_without_selector() -> None:
     assert db == Spec.make_datablock([rec1a])
     assert db.records == [rec1a]
     rawdb = RawDatablock(db.unparse())
-    assert Spec.parse(rawdb, uap='uap0') == db
+    assert Spec.parse(rawdb, opt, uap='uap0') == db
 
     rec1b = Spec.make_record_unsafe('uap1', {
         '000': 0,
@@ -105,5 +107,5 @@ def test_multiple_without_selector() -> None:
     assert db == Spec.make_datablock([rec1b])
     assert db.records == [rec1b]
     rawdb = RawDatablock(db.unparse())
-    assert Spec.parse(rawdb, uap='uap1') == db
+    assert Spec.parse(rawdb, opt, uap='uap1') == db
 

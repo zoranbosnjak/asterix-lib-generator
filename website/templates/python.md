@@ -176,9 +176,10 @@ from each record
 
 ```python
 # s = ... use data from the example above
+opt = ParsingOptions.default()
 raw_datablocks = RawDatablock.parse(s)      # can fail on wrong input
 for raw_datablock in raw_datablocks:
-    datablock = Spec.parse(raw_datablock)   # can fail on wrong input
+    datablock = Spec.parse(raw_datablock, opt)   # can fail on wrong input
     for record in datablock.records:
         message_type = record.get_item('000') # returns None if the item is not present
         print('{}: {}'.format(message_type.to_uinteger(), message_type.table_value))
@@ -190,6 +191,8 @@ for raw_datablock in raw_datablocks:
 import time
 import random
 from asterix import *
+
+opt = ParsingOptions.default()
 
 # categories/editions of interest
 Specs = {
@@ -213,7 +216,7 @@ def process_datablock(sac, sic, raw_db):
     if Spec is None:
         return raw_db
     # second level of parsing (records are valid)
-    db = Spec.parse(raw_db)
+    db = Spec.parse(raw_db, opt)
     new_records = [process_record(sac, sic, rec) for rec in db.records]
     return Spec.make_datablock(new_records)
 
@@ -331,7 +334,7 @@ for raw_datablock in RawDatablock.parse(s):
     if Spec is None:
         print('unsupported category')
         continue
-    datablock = Spec.parse(raw_datablock)
+    datablock = Spec.parse(raw_datablock, opt)
     cat = raw_datablock.category
     for record in datablock.records:
         cls = record.__class__
@@ -408,6 +411,17 @@ Found 2 errors in 1 file (checked 1 source file)
 ```
 
 ## Module classes and functions
+
+### Parsing options
+
+```python
+@dataclass
+class ParsingOptions:
+    no_check_spare : bool       # do not check spare bits value (zero)
+
+    @classmethod
+    def default(cls) -> 'ParsingOptions':   # create default options
+```
 
 ### AsterixError
 
@@ -495,7 +509,7 @@ class Element(Variation):
     quantity : Quantity
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
 
     def _from_raw(self, raw : Raw) -> Bits:
 
@@ -512,7 +526,7 @@ class Group(Variation):
     subitems_dict : Dict[ItemName, Tuple[str, Any, int, int]]
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
 
     def __init__(self, val : Bits, items : Dict[ItemName, Any]):
 
@@ -535,7 +549,7 @@ class Extended(Variation):
     subitems_dict : Dict[ItemName, Tuple[str, Any, int, int]]
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
 
     def __init__(self, val : Bits, items : Dict[ItemName, Element]):
 
@@ -555,7 +569,7 @@ class Repetitive(Variation):
     variation_type : Any
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
 
     def __init__(self, val : Bits, items : List[Variation]):
 
@@ -574,7 +588,7 @@ class Repetitive(Variation):
 class Explicit(Variation):
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
 
     def __init__(self, val : Bits, raw : bytes):
 
@@ -590,7 +604,7 @@ class Compound(Variation):
     subitems_dict : Dict[ItemName, Tuple[Any, int]]
 
     @classmethod
-    def parse_bits(cls, s : Bits) -> Any:
+    def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
 
     def __init__(self, val : Bits = Bits.empty(), items : Dict[ItemName, Variation] = {}) -> None:
 
@@ -637,7 +651,7 @@ class Basic(AsterixSpec):
     uap_selector_table : Any
 
     @classmethod
-    def _parse(cls, raw_db : RawDatablock, uap : Optional[str] = None) -> Any:
+    def _parse(cls, raw_db : RawDatablock, opt : ParsingOptions, uap : Optional[str] = None) -> Any:
 
     @classmethod
     def _is_valid(cls, rec : Any) -> bool:
@@ -964,7 +978,7 @@ class CAT_(cat)_(edMajor)_(edMinor)(Basic):
     def make_datablock(cls, val : Union[Variation_XY, List[Variation_XY]]) -> Datablock[Variation_XY]:
 
     @classmethod
-    def parse(cls, val : RawDatablock) -> Datablock[Variation_XY]:
+    def parse(cls, val : RawDatablock, opt : ParsingOptions) -> Datablock[Variation_XY]:
 ```
 
 #### Expansion spec
@@ -981,7 +995,7 @@ class REF_000_1_0(Expansion):
     def make_extended(cls, val : Variation_XY_Arg) -> Variation_XY:
 
     @classmethod
-    def parse(cls, val : bytes) -> Variation_XY:
+    def parse(cls, val : bytes, opt : ParsingOptions) -> Variation_XY:
 ```
 
 #### Generated manifest
