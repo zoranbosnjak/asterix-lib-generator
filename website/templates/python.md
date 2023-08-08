@@ -260,7 +260,46 @@ while True:
 
 #### Multiple UAP-s
 
-TODO... see tests
+In case of multiple UAP-s use `make_record_unsafe` method to create records.
+This method is *unsafe* in the sense that static type checker can not detect
+misalignment between UAP name and UAP selector value.
+Make sure to use appropriate UAP name, together with a correct UAP selector
+value, for example for CAT001:
+
+- `['020', 'TYP'] = 0` for `plot`
+- `['020', 'TYP'] = 1` for `track`
+
+```python
+from asterix import *
+
+Cat1 = CAT_001_1_4
+
+rec01_plot = Cat1.make_record_unsafe('plot', {
+    '010': 0x0102,
+    '020': {'TYP': 0, 'SIM': 0, 'SSRPSR': 0, 'ANT': 0, 'SPI': 0, 'RAB': 0},
+    '040': 0x01020304,
+    })
+
+rec01_track = Cat1.make_record_unsafe('track', {
+    '010': 0x0102,
+    '020': {'TYP': 1, 'SIM': 0, 'SSRPSR': 0, 'ANT': 0, 'SPI': 0, 'RAB': 0},
+    '040': 0x01020304,
+    })
+
+rec01_invalid = Cat1.make_record_unsafe('plot', {
+    '010': 0x0102,
+    '020': {'TYP': 1, 'SIM': 0, 'SSRPSR': 0, 'ANT': 0, 'SPI': 0, 'RAB': 0},
+    '040': 0x01020304,
+    })
+
+print(Cat1.make_datablock([rec01_plot]).unparse().hex())
+print(Cat1.make_datablock([rec01_track]).unparse().hex())
+print(Cat1.make_datablock([rec01_invalid]).unparse().hex())
+
+assert Cat1.is_valid(rec01_plot) == True
+assert Cat1.is_valid(rec01_track) == True
+assert Cat1.is_valid(rec01_invalid) == False
+```
 
 ### Library manifest
 
