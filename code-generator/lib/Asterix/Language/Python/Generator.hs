@@ -26,7 +26,9 @@ import           Options.Applicative as Opt
 import           Data.FileEmbed (makeRelativeToProject, embedFile)
 
 import           Asterix.Specs
-                    (Name, RegisterSize, Title, ExtendedType(..), RepetitiveType(..), Edition(..), UapSelector(..))
+                    (Name, RegisterSize, Title, ExtendedType(..)
+                    , RepetitiveType(..), Edition(..), UapSelector(..)
+                    , ExplicitType(..))
 import           Asterix.Indent
 
 import           Asterix.Struct
@@ -535,14 +537,17 @@ handleRepetitive db vc rt varBitSize var = do
     xPendItem f = pyFunc f ["self", "arg : " <> arg] ("'" <> nameOf vc <> "'") $ do
         fmt ("return self._" % stext % "(arg) # type: ignore") f
 
-handleExplicit :: VariationIx -> BlockM Builder ()
-handleExplicit vc = do
+handleExplicit :: VariationIx -> Maybe ExplicitType -> BlockM Builder ()
+handleExplicit vc et = do
     typeAlias (argOf vc) "bytes"
     pyClass (nameOf vc) ["Explicit"] $ blocksLn
         [ fmt "variation = 'Explicit'"
+        , constants
         , initFunc
         ]
   where
+    constants = do
+        fmt ("explicit_type = " % stext) (maybe "None" (T.pack . show . show) et)
     initFunc = pyFunc "__init__" ["self", "arg : bytes"] "None" $ mconcat
         [ pyIf "isinstance(arg, tuple)" "super().__init__(*arg); return"
         , pyIf "isinstance(arg, bytes)" "super().__init__(*self._from_bytes(arg)); return"
@@ -678,7 +683,7 @@ variationBlock db vc variation = case variation of
     Group lst -> handleGroup db vc lst
     Extended et n1 n2 grps -> handleExtended db vc et n1 n2 grps
     Repetitive rt varBitSize var2 -> handleRepetitive db vc rt varBitSize var2
-    Explicit -> handleExplicit vc
+    Explicit et -> handleExplicit vc et
     Compound mn fspec_max_bytes lst -> handleCompound db vc mn fspec_max_bytes lst
 
 -- | Create top-level variations.

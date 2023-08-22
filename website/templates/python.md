@@ -625,6 +625,7 @@ class Repetitive(Variation):
     def _prepend_item(self, arg : Any) -> Any:
 
 class Explicit(Variation):
+    explicit_type : Optional[str]
 
     @classmethod
     def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
@@ -904,6 +905,7 @@ assert item3 == item_spec([6,0,1])
 ```python
 class Variation_XY(Explicit):
     variation = 'Explicit'
+    explicit_type = "ReservedExpansion"
     def __init__(self, arg : bytes) -> None:
         if isinstance(arg, tuple):
         if isinstance(arg, bytes):

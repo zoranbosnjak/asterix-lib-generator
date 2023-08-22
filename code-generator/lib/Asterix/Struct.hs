@@ -4,6 +4,8 @@
 --
 -- 'Dependent Rule' is simplified to 'Raw' content.
 --
+-- Random Field Sequencing is not supported.
+--
 -- Sizes and offsets are calculated from the original structure.
 --
 -- 'VariationDb' - Variation database is a collection of all subitems, without
@@ -76,7 +78,7 @@ data Variation
     | Extended A.ExtendedType A.RegisterSize A.RegisterSize
         [[(GroupOffset, A.RegisterSize, Item)]]
     | Repetitive A.RepetitiveType A.RegisterSize Variation
-    | Explicit
+    | Explicit (Maybe A.ExplicitType)
     | Compound (Maybe ByteSize) ByteSize [Maybe (A.Name, A.Title, Variation, Fspec)]
     deriving (Eq, Ord, Show)
 
@@ -215,10 +217,12 @@ deriveVariationS path = \case
             A.RepetitiveFx -> modify (<> octetOffset 1) -- FX bit
         byteAligned path "repetitive (post)"
         pure $ Repetitive rt (sizeOf $ Item mempty mempty var2) var2
-    A.Explicit -> do
+    A.Explicit et -> do
         byteAligned path "explicit (pre)"
-        pure Explicit
-    A.Compound mn lst -> do
+        pure $ Explicit et
+    A.RandomFieldSequencing -> do
+        error "Random Field Sequencing is not supported."
+    A.Compound mn lst' -> do
         byteAligned path "compound (pre)"
         result <- Compound
             <$> pure mn
@@ -227,6 +231,10 @@ deriveVariationS path = \case
         byteAligned path "compound (post)"
         pure result
       where
+        removeRfs = \case
+            Just (A.Item _name _title A.RandomFieldSequencing _doc) -> Nothing
+            other -> other
+        lst = fmap removeRfs lst'
         fspec_max_bytes :: ByteSize
         fspec_max_bytes = case mn of
             Just m -> case divMod m 8 of    -- no FX
@@ -351,7 +359,7 @@ saveVariation path var = do
             Spare _ _ -> pure ()
             Item name _title var2 -> saveVariation (name:path) var2
         Repetitive _repByteSize _varBitSize var2 -> saveVariation path var2
-        Explicit -> pure ()
+        Explicit _et -> pure ()
         Compound _mn _max_b lst -> forM_ lst $ \case
             Nothing -> pure ()
             Just (name,_title,var2,_fspec) -> saveVariation (name:path) var2

@@ -644,6 +644,7 @@ class Repetitive(Variation):
         return self.__class__([arg] + items) # type: ignore
 
 class Explicit(Variation):
+    explicit_type : Optional[str]
 
     @classmethod
     def parse_bits(cls, s : Bits, opt : ParsingOptions) -> Any:
