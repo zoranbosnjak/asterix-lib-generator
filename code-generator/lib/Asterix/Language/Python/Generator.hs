@@ -32,32 +32,11 @@ import           Asterix.Specs
 import           Asterix.Indent
 
 import           Asterix.Struct
-
--- | The same as 'line $ bformat (formating) arg1 arg2 ...'
-fmt :: Format (BlockM Builder ()) a -> a
-fmt m = runFormat m line
-
--- | Escape text (single quotes).
-escaped :: Text -> Text
-escaped s
-    | s == "''" = s
-    | otherwise = "'" <> T.replace "'" "\\'" s <> "'"
-
--- | Helper function to find variation index from the variation database.
-indexOf :: VariationDb -> Variation -> VariationIx
-indexOf db subvar = fst $ db Map.! subvar
-
--- | Name of variation with given index.
-nameOf :: VariationIx -> Text
-nameOf vc = sformat ("Variation_" % int) vc
+import           Asterix.Common
 
 -- | Name of argument with given (variation) index.
 argOf :: VariationIx -> Text
 argOf vc = nameOf vc <> "_Arg"
-
--- | Show path as text.
-tPath :: Path -> Text
-tPath = T.pack . show . reverse
 
 -- | Python building blocks
 
@@ -124,8 +103,8 @@ subSpecs lst = blocksLn
                         (line $ "return " <> BL.fromText cls)
                 line $ "assert_never(key)"
 
-handleElement :: VariationIx -> OctetOffset -> RegisterSize -> Maybe Content -> BlockM Builder ()
-handleElement vc o n mCont = do
+handleElement :: VariationIx -> OctetOffset -> RegisterSize -> Content -> BlockM Builder ()
+handleElement vc o n cont = do
     typeAlias (argOf vc) arg
     pyClass (nameOf vc) ["Element"] $ blocksLn
         [ fmt "variation = 'Element'"
@@ -136,24 +115,24 @@ handleElement vc o n mCont = do
         , toQuantity
         ]
   where
-    arg = case mCont of
-        Just (ContentString _st) -> "Union[Raw,str]"
-        Just (ContentQuantity _sig _num _frac unit) ->
+    arg = case cont of
+        ContentString _st -> "Union[Raw,str]"
+        ContentQuantity _sig _num _frac unit ->
             "Union[Raw,float,Tuple[float,Literal[" <> escaped unit <> "]]]"
         _ -> "Raw"
 
-    tableConst = case mCont of
-        Just (ContentTable lst) -> enclose "table = {" "}" $ mconcat $ do
+    tableConst = case cont of
+        ContentTable lst -> enclose "table = {" "}" $ mconcat $ do
             (x, t) <- lst
             pure $ fmt (int % ": " % stext % ",") x (escaped t)
         _ -> pure ()
 
-    strConst = case mCont of
-        Just (ContentString st) -> fmt ("string_type = " % string % "()") (show st)
+    strConst = case cont of
+        ContentString st -> fmt ("string_type = " % string % "()") (show st)
         _ -> pure ()
 
-    quantityConst = case mCont of
-        Just (ContentQuantity sig num frac unit) -> fmt ("quantity = Quantity("
+    quantityConst = case cont of
+        ContentQuantity sig num frac unit -> fmt ("quantity = Quantity("
             % "'" % string % "'"
             % ", " % string
             % ", " % string
@@ -173,29 +152,29 @@ handleElement vc o n mCont = do
             "super().__init__(arg); return"
         pyIf "isinstance(arg, Raw)"
             "super().__init__(self._from_raw(arg)); return"
-        case mCont of
-            Just (ContentString _st) -> pyIf "isinstance(arg, str)"
+        case cont of
+            ContentString _st -> pyIf "isinstance(arg, str)"
                 "super().__init__(self._from_string(arg)); return"
-            Just (ContentQuantity _sig _num _frac _unit) -> do
+            ContentQuantity _sig _num _frac _unit -> do
                 pyIf "isinstance(arg, float)" "super().__init__(self._from_float(arg)); return"
                 pyIf "isinstance(arg, tuple)" "super().__init__(self._from_float(arg[0])); return"
             _ -> pure ()
         line $ "assert_never(arg)"
 
-    tableLookup = case mCont of
-        Just (ContentTable _lst) -> do
+    tableLookup = case cont of
+        ContentTable _lst -> do
             line $ "@property"
             pyFunc "table_value" ["self"] "Optional[str]" $
                 "return self.__class__.table.get(self.to_uinteger())"
         _ -> pure ()
 
-    toString = case mCont of
-        Just (ContentString _st) -> pyFunc "to_string" ["self"] "str" $
+    toString = case cont of
+        ContentString _st -> pyFunc "to_string" ["self"] "str" $
             "return self._to_string()"
         _ -> pure ()
 
-    toQuantity = case mCont of
-        Just (ContentQuantity _sig _num _frac _unit) -> pyFunc "to_quantity" ["self"] "float" $
+    toQuantity = case cont of
+        ContentQuantity _sig _num _frac _unit -> pyFunc "to_quantity" ["self"] "float" $
             "return self._to_quantity()"
         _ -> pure ()
 
@@ -702,7 +681,7 @@ programVariations includeComments db = blocksLn $ do
 
 -- | Create top-level asterix spec.
 handleSpec :: VariationDb -> Asterix -> BlockM Builder ()
-handleSpec db ast = case astType ast of
+handleSpec db ast = case astSpec ast of
     AstCat uap -> pyClass (specName ast) ["Basic"] $ case uap of
         Uap var -> blocksLn
             [ catLine >> varLine (nameOf $ iv var)
@@ -874,13 +853,6 @@ programVersion versionText reference = blocksLn
     [ fmt ("VERSION = '" % stext % "'") versionText
     , fmt ("REFERENCE = '" % stext % "'") reference
     ]
-
--- | Helper function to order specs.
-compareSpecs :: Asterix -> Asterix -> Ordering
-compareSpecs a b
-    = compare (astType a) (astType b)
-   <> compare (astCat a) (astCat b)
-   <> compare (astEdition a) (astEdition b)
 
 -- | Create generated code.
 mkGeneratedCode :: Bool -> Text -> Text -> Set Asterix -> BlockM Builder ()

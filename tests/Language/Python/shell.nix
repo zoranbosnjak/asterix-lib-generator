@@ -3,7 +3,6 @@
 }:
 
 let
-  codeGenerator = import ../../../code-generator/default.nix {inShell = false;};
   customPython = pkgs.python311.buildEnv.override {
     extraLibs = [
       pkgs.python311Packages.mypy
@@ -17,7 +16,6 @@ in pkgs.stdenv.mkDerivation rec {
 
   buildInputs = [
     customPython
-    codeGenerator
   ];
 
   shellHook = ''

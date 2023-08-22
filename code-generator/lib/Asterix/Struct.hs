@@ -30,6 +30,7 @@ import           Data.Map (Map)
 import           Data.Set (Set)
 import           Data.Bool
 import           Data.Word
+import qualified Data.Text as T
 import           Data.Text (Text)
 import           Formatting as F
 
@@ -66,14 +67,15 @@ type Fspec = [Word8]
 
 -- | Derived content
 data Content
-    = ContentTable [(Int, Text)]
+    = ContentRaw
+    | ContentTable [(Int, Text)]
     | ContentString A.StringType
     | ContentQuantity A.Signed Double A.FractBits A.Unit
     deriving (Eq, Ord, Show)
 
 -- | Derived variation
 data Variation
-    = Element OctetOffset A.RegisterSize (Maybe Content)
+    = Element OctetOffset A.RegisterSize Content
     | Group [(GroupOffset, A.RegisterSize, Item)]
     | Extended A.ExtendedType A.RegisterSize A.RegisterSize
         [[(GroupOffset, A.RegisterSize, Item)]]
@@ -98,12 +100,12 @@ data Uap
     deriving (Eq, Ord, Show)
 
 -- | Type of asterix spec
-data AstType
+data AstSpec
     = AstCat Uap
     | AstRef Variation
     deriving (Eq, Show)
 
-instance Ord AstType where
+instance Ord AstSpec where
     compare (AstCat _) (AstRef _) = LT
     compare (AstRef _) (AstCat _) = GT
     compare (AstCat _) (AstCat _) = EQ
@@ -113,8 +115,19 @@ instance Ord AstType where
 data Asterix = Asterix
     { astCat :: Cat
     , astEdition :: A.Edition
-    , astType :: AstType
+    , astSpec :: AstSpec
     } deriving (Eq, Ord, Show)
+
+-- | Show path as text.
+tPath :: Path -> Text
+tPath = T.pack . show . reverse
+
+-- | Helper function to order specs.
+compareSpecs :: Asterix -> Asterix -> Ordering
+compareSpecs a b
+    = compare (astSpec a) (astSpec b)
+   <> compare (astCat a) (astCat b)
+   <> compare (astEdition a) (astEdition b)
 
 -- | Assert assumption
 assert :: Applicative f => String -> Bool -> f ()
@@ -128,20 +141,20 @@ byteAligned path msg = do
     assert (show path <> ", " <> msg <> ": bit offset " <> show o) (o == mempty)
 
 -- | Derive content
-deriveContent :: A.Rule -> Maybe Content
-deriveContent (A.Dependent _ _) = Nothing
+deriveContent :: A.Rule -> Content
+deriveContent (A.Dependent _ _) = ContentRaw
 deriveContent (A.ContextFree content) = case content of
-    A.ContentRaw -> Nothing
-    A.ContentTable lst -> Just $ ContentTable lst
-    A.ContentString st -> Just $ ContentString st
-    A.ContentInteger _signed _cont -> Nothing
-    A.ContentQuantity sig num k unit _con -> Just $
+    A.ContentRaw -> ContentRaw
+    A.ContentTable lst -> ContentTable lst
+    A.ContentString st -> ContentString st
+    A.ContentInteger _signed _cont -> ContentRaw
+    A.ContentQuantity sig num k unit _con ->
         let n = fromRational $ case num of
                 A.NumberZ val -> toRational val
                 A.NumberQ val -> val
                 A.NumberR val -> val
         in ContentQuantity sig n k unit
-    A.ContentBds _bds -> Nothing
+    A.ContentBds _bds -> ContentRaw
 
 -- | Calculate fixed items size (assume fixed item)
 sizeOf :: Item -> Int
@@ -226,7 +239,7 @@ deriveVariationS path = \case
         byteAligned path "compound (pre)"
         result <- Compound
             <$> pure mn
-            <*> pure fspec_max_bytes
+            <*> pure fspecMaxBytes
             <*> mapM stripMaybeItem lst
         byteAligned path "compound (post)"
         pure result
@@ -235,8 +248,8 @@ deriveVariationS path = \case
             Just (A.Item _name _title A.RandomFieldSequencing _doc) -> Nothing
             other -> other
         lst = fmap removeRfs lst'
-        fspec_max_bytes :: ByteSize
-        fspec_max_bytes = case mn of
+        fspecMaxBytes :: ByteSize
+        fspecMaxBytes = case mn of
             Just m -> case divMod m 8 of    -- no FX
                 (n, 0) -> n
                 _ -> error "unexpected fx bit size"
@@ -246,7 +259,7 @@ deriveVariationS path = \case
         fspecOf :: A.Name -> Fspec
         fspecOf name = case mn of
             Just _n ->
-                let itemGroups = chunksOf 8 $ take (fspec_max_bytes * 8) (lst <> repeat Nothing)
+                let itemGroups = chunksOf 8 $ take (fspecMaxBytes * 8) (lst <> repeat Nothing)
                     fspecs = fspecChunkOf name <$> itemGroups
                     results = maybe 0 id <$> fspecs
                 in case length (catMaybes fspecs) == 1 of
@@ -346,6 +359,14 @@ deriveAsterix = \case
 type VariationIx = Int
 type VariationDb = Map Variation (VariationIx, Set Path)
 
+-- | Helper function to find variation index from the variation database.
+indexOf :: VariationDb -> Variation -> VariationIx
+indexOf db subvar = fst $ db Map.! subvar
+
+-- | Name of variation with given index.
+nameOf :: VariationIx -> Text
+nameOf vc = sformat ("Variation_" % int) vc
+
 -- | Recursively save variation to the database
 saveVariation :: Path -> Variation -> State VariationDb ()
 saveVariation path var = do
@@ -374,7 +395,7 @@ saveVariation path var = do
 variationDb :: Set Asterix -> VariationDb
 variationDb specs = execState (mapM_ save specs) mempty
   where
-    save ast = case astType ast of
+    save ast = case astSpec ast of
         AstCat uap -> case uap of
             Uap var -> saveVariation [specName ast] var
             Uaps lst _ -> forM_ lst $ \(name, var) -> do

@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               generator
-version:            0.6.0
+version:            0.6.1
 synopsis:           Asterix source code generator.
 -- description:
 homepage:           https://zoranbosnjak.github.io/asterix-lib-generator/
@@ -90,6 +90,7 @@ common app
 library
     import: deps, opts
     exposed-modules:
+        Asterix.Common
         Asterix.Struct
         Asterix.Language.Python.Generator
     -- other-modules:
