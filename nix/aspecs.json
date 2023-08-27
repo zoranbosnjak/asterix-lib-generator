@@ -4,6 +4,7 @@
   "date": "2023-07-24T20:25:24+02:00",
   "path": "/nix/store/rw5fsisskbrqvwr4xj6cagk8kg6a7gj1-asterix-specs",
   "sha256": "1hhcl6pa18837j83z98m6s70fmylb4zg6qaa4q68g5wcacxbssg1",
+  "hash": "sha256-4Wm9OlOMl4cMJkph8z5Z1FcHjjYVpT+QPAOhoK6hDMI=",
   "fetchLFS": false,
   "fetchSubmodules": false,
   "deepClone": false,
