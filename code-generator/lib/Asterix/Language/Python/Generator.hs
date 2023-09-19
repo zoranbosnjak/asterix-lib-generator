@@ -26,7 +26,7 @@ import           Options.Applicative as Opt
 import           Data.FileEmbed (makeRelativeToProject, embedFile)
 
 import           Asterix.Specs
-                    (Name, RegisterSize, Title, ExtendedType(..)
+                    (Name, RegisterSize, Title
                     , RepetitiveType(..), Edition(..), UapSelector(..)
                     , ExplicitType(..))
 import           Asterix.Indent
@@ -310,9 +310,9 @@ handleGroup db vc lst = do
             ]
 
 handleExtended :: VariationDb -> VariationIx
-    -> ExtendedType -> RegisterSize -> RegisterSize -> [[(GroupOffset, RegisterSize, Item)]]
+    -> [GroupMember] -> [[GroupMember]] -> TrailingFx
     -> BlockM Builder ()
-handleExtended db vc et n1 n2 grps = do
+handleExtended db vc prim ext trfx = do
     mconcat (fmap mkGrp grps')
     argUnion
     pyClass (nameOf vc) ["Extended"] $ blocksLn
@@ -327,7 +327,9 @@ handleExtended db vc et n1 n2 grps = do
         , modifyItem
         ]
   where
-    grps' :: [(Int, [(GroupOffset, RegisterSize, Item)])]
+    grps = prim : ext
+
+    grps' :: [(Int, [GroupMember])]
     grps' = zip [1..] (fmap mconcat (drop 1 $ inits grps))
 
     ag :: Int -> Text
@@ -355,11 +357,7 @@ handleExtended db vc et n1 n2 grps = do
                     <> "],"
 
     constants = do
-        line $ "no_trailing_fx = " <> case et of
-            ExtendedRegular -> "False"
-            ExtendedNoTrailingFx -> "True"
-        fmt ("prim_bit_size = " % int) n1
-        fmt ("ext_bit_size = " % int) n2
+        line $ "no_trailing_fx = " <> bool "True" "False" trfx
         enclose "groups_bit_sizes = [" "]" $ mconcat $ do
             lst <- grps
             pure $ fmt (int % ",") (sum [n | (_,n,_) <- lst])
@@ -660,7 +658,7 @@ variationBlock :: VariationDb -> VariationIx -> Variation -> BlockM Builder ()
 variationBlock db vc variation = case variation of
     Element o n cont -> handleElement vc o n cont
     Group lst -> handleGroup db vc lst
-    Extended et n1 n2 grps -> handleExtended db vc et n1 n2 grps
+    Extended prim ext trfx -> handleExtended db vc prim ext trfx
     Repetitive rt varBitSize var2 -> handleRepetitive db vc rt varBitSize var2
     Explicit et -> handleExplicit vc et
     Compound mn fspec_max_bytes lst -> handleCompound db vc mn fspec_max_bytes lst

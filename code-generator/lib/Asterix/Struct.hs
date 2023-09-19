@@ -12,11 +12,6 @@
 -- duplications (the same definitions can be reused). For example,
 -- 'I010/SAC' and 'I010/SIC' fields normally share exactly the same structure,
 -- so it is stored in a database only once.
---
--- [tag:extended-no-trailing-fx]
--- In case of no-trailing-fx type of extended item, the length of extended
--- groups must be > 1, otherwise it would be the same as 'group'. The regular
--- extended item however can contain a single group (with the 'fx' at the end).
 
 module Asterix.Struct where
 
@@ -73,12 +68,15 @@ data Content
     | ContentQuantity A.Signed Double A.FractBits A.Unit
     deriving (Eq, Ord, Show)
 
+type GroupMember = (GroupOffset, A.RegisterSize, Item)
+
+type TrailingFx = Bool
+
 -- | Derived variation
 data Variation
     = Element OctetOffset A.RegisterSize Content
-    | Group [(GroupOffset, A.RegisterSize, Item)]
-    | Extended A.ExtendedType A.RegisterSize A.RegisterSize
-        [[(GroupOffset, A.RegisterSize, Item)]]
+    | Group [GroupMember]
+    | Extended [GroupMember] [[GroupMember]] TrailingFx
     | Repetitive A.RepetitiveType A.RegisterSize Variation
     | Explicit (Maybe A.ExplicitType)
     | Compound (Maybe ByteSize) ByteSize [Maybe (A.Name, A.Title, Variation, Fspec)]
@@ -187,11 +185,6 @@ fspecChunkOf name lst = listToMaybe $ do
     guard $ name == name2
     pure (2^x)
 
--- | Boolean implication.
-implies :: Bool -> Bool -> Bool
-implies True b = b
-implies False _ = True
-
 -- | Derive variation
 deriveVariationS :: Path -> A.Variation -> State OctetOffset Variation
 deriveVariationS path = \case
@@ -204,24 +197,34 @@ deriveVariationS path = \case
         let loop _ [] = []
             loop ix (x:xs) = ((ix,sizeOf x,x) : loop (ix + sizeOf x) xs)
         pure $ Group $ loop 0 result
-    A.Extended et n1 n2 lst -> do
-        groups' <- mapM handleGroup groups
-        -- Check the length, to satisfy [ref:extended-no-trailing-fx].
-        assert "single trailing" $ (et == A.ExtendedNoTrailingFx) `implies` (length lst > 1)
-        pure $ Extended et n1 n2 groups'
+    A.Extended lst1 -> do
+        (prim, lst2) <- getPrim lst1
+        assert "unexpected primary group" (lst2 /= [])
+        ext <- getExt lst2
+        OctetOffset o <- get
+        when (o == 7) skipFx
+        pure $ Extended prim ext $ case o of
+            7 -> True
+            0 -> False
+            _ -> error "Unexpected octet offset for FX bit"
       where
-        groups :: [[A.Item]]
-        groups = fromJust $ A.extendedItemGroups et n1 n2 lst
-
-        handleGroup :: [A.Item] -> State OctetOffset [(GroupOffset, A.RegisterSize, Item)]
-        handleGroup [] = do
-            put mempty
-            pure []
-        handleGroup (item:items) = do
-            o <- get
-            i <- deriveItemS path item
-            rest <- handleGroup items
-            pure ((unOctetOffset o, sizeOf i, i):rest)
+        skipFx = modify (<> octetOffset 1)
+        mkGroup _ [] = []
+        mkGroup ix (x:xs) = ((ix,sizeOf x,x) : mkGroup (ix + sizeOf x) xs)
+        getPrim lst = do
+            OctetOffset o <- get
+            assert "unexpected offset" (o == 0)
+            let (a,b) = span (/= Nothing) lst
+            a' <- mapM (deriveItemS path) (fmap fromJust a)
+            pure (mkGroup 0 a', b)
+        getExt lst = case lst of
+            [] -> pure []
+            [Nothing] -> pure []
+            _ -> do
+                skipFx
+                (grp, b) <- getPrim (drop 1 lst)
+                rest <- getExt b
+                pure (grp : rest)
     A.Repetitive rt var -> do
         byteAligned path "repetitive (pre)"
         var2 <- (deriveVariationS path) var
@@ -376,9 +379,11 @@ saveVariation path var = do
         Group lst -> forM_ lst $ \(_of, _n, item) -> case item of
             Spare _ _ -> pure ()
             Item name _title var2 -> saveVariation (name:path) var2
-        Extended _et _n1 _n2 grps -> forM_ (join grps) $ \(_of, _n, item) -> case item of
-            Spare _ _ -> pure ()
-            Item name _title var2 -> saveVariation (name:path) var2
+        Extended prim ext _trfx -> do
+            let grps = prim : ext
+            forM_ (join grps) $ \(_of, _n, item) -> case item of
+                Spare _ _ -> pure ()
+                Item name _title var2 -> saveVariation (name:path) var2
         Repetitive _repByteSize _varBitSize var2 -> saveVariation path var2
         Explicit _et -> pure ()
         Compound _mn _max_b lst -> forM_ lst $ \case

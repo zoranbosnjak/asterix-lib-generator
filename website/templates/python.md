@@ -581,8 +581,6 @@ class Group(Variation):
 
 class Extended(Variation):
     no_trailing_fx : bool # See [ref:extended-no-trailing-fx].
-    prim_bit_size : int
-    ext_bit_size : int
     groups_bit_sizes : List[int]
     subitems_list : List[List[Union[Spare, Tuple[ItemName, Any]]]]
     subitems_dict : Dict[ItemName, Tuple[str, Any, int, int]]
@@ -780,8 +778,6 @@ assert item2 == item3                           # check
 class Variation_XY(Extended):
     variation = 'Extended'
     no_trailing_fx = False | True
-    prim_bit_size = (int)
-    ext_bit_size = (int)
     groups_bit_sizes = [
         (int),
         (int),

@@ -53,32 +53,37 @@ items
                     raw
 
     020 ""
-        extended 8 8
+        extended
             A ""
                 element 7
                     raw
+            -
             B ""
                 element 4
                     raw
             C ""
                 element 3
                     raw
+            -
             spare 1
             D ""
                 element 6
                     raw
+            -
 
     021 ""
-        extended no-trailing-fx 8 8
+        extended
             A ""
                 element 7
                     raw
+            -
             B ""
                 element 4
                     raw
             C ""
                 element 3
                     raw
+            -
             spare 2
             D ""
                 element 6
