@@ -385,7 +385,7 @@ handleExtended db vc prim ext trfx = do
         pure (name, cls)
 
     initFunc = pyFunc "__init__" ["self", "arg : " <> argOf vc] "None" $ do
-        -- In the case of single group, the fx is present, see [ref:extended-no-trailing-fx].
+        -- In the case of single group, the fx is present.
         pyIf "isinstance(arg, int)"
             "super().__init__(*self._from_single_int(0, arg, False)); return"
         pyIf "isinstance(arg, tuple)" $ do
