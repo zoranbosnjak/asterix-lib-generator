@@ -65,7 +65,7 @@ data Content
     = ContentRaw
     | ContentTable [(Int, Text)]
     | ContentString A.StringType
-    | ContentQuantity A.Signed Double A.FractBits A.Unit
+    | ContentQuantity A.Signedness Double A.FractBits A.Unit
     deriving (Eq, Ord, Show)
 
 type GroupMember = (GroupOffset, A.RegisterSize, Item)
@@ -145,7 +145,7 @@ deriveContent (A.ContextFree content) = case content of
     A.ContentRaw -> ContentRaw
     A.ContentTable lst -> ContentTable lst
     A.ContentString st -> ContentString st
-    A.ContentInteger _signed _cont -> ContentRaw
+    A.ContentInteger _sig _cont -> ContentRaw
     A.ContentQuantity sig num k unit _con ->
         let n = fromRational $ case num of
                 A.NumberZ val -> toRational val
@@ -406,4 +406,3 @@ variationDb specs = execState (mapM_ save specs) mempty
             Uaps lst _ -> forM_ lst $ \(name, var) -> do
                 saveVariation [name, specName ast] var
         AstRef var -> saveVariation [specName ast] var
-
