@@ -31,7 +31,7 @@ items
 
     005 ""
         element 16
-            unsigned quantity 360 16 "°"
+            unsigned quantity 360/2^16 "°"
 
     010 "Data Source Identifier"
         group
@@ -134,4 +134,3 @@ uap
     031
     040
     050
-

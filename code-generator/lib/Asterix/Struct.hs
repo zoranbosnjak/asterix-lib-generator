@@ -65,7 +65,7 @@ data Content
     = ContentRaw
     | ContentTable [(Int, Text)]
     | ContentString A.StringType
-    | ContentQuantity A.Signedness Double A.FractBits A.Unit
+    | ContentQuantity A.Signedness A.Number A.Unit
     deriving (Eq, Ord, Show)
 
 type GroupMember = (GroupOffset, A.RegisterSize, Item)
@@ -146,12 +146,7 @@ deriveContent (A.ContextFree content) = case content of
     A.ContentTable lst -> ContentTable lst
     A.ContentString st -> ContentString st
     A.ContentInteger _sig _cont -> ContentRaw
-    A.ContentQuantity sig num k unit _con ->
-        let n = fromRational $ case num of
-                A.NumberZ val -> toRational val
-                A.NumberQ val -> val
-                A.NumberR val -> val
-        in ContentQuantity sig n k unit
+    A.ContentQuantity sig lsb unit _con -> ContentQuantity sig lsb unit
     A.ContentBds _bds -> ContentRaw
 
 -- | Calculate fixed items size (assume fixed item)

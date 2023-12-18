@@ -28,7 +28,7 @@ import           Data.FileEmbed (makeRelativeToProject, embedFile)
 import           Asterix.Specs
                     (Name, RegisterSize, Title
                     , RepetitiveType(..), Edition(..), UapSelector(..)
-                    , ExplicitType(..))
+                    , ExplicitType(..), Number(..))
 import           Asterix.Indent
 
 import           Asterix.Struct
@@ -117,7 +117,7 @@ handleElement vc o n cont = do
   where
     arg = case cont of
         ContentString _st -> "Union[Raw,str]"
-        ContentQuantity _sig _num _frac unit ->
+        ContentQuantity _sig _lsb unit ->
             "Union[Raw,float,Tuple[float,Literal[" <> escaped unit <> "]]]"
         _ -> "Raw"
 
@@ -131,13 +131,18 @@ handleElement vc o n cont = do
         ContentString st -> fmt ("string_type = " % string % "()") (show st)
         _ -> pure ()
 
+    realNum :: Number -> Double
+    realNum = \case
+        NumInt i -> fromIntegral i
+        NumDiv a b -> realNum a / realNum b
+        NumPow a b -> fromIntegral (a ^ b)
+
     quantityConst = case cont of
-        ContentQuantity sig num frac unit -> fmt ("quantity = Quantity("
+        ContentQuantity sig lsb unit -> fmt ("quantity = Quantity("
             % "'" % string % "'"
             % ", " % string
-            % ", " % string
             % ", " % stext
-            % ")") (show sig) (show num) (show frac) (escaped unit)
+            % ")") (show sig) (show $ realNum lsb) (escaped unit)
         _ -> pure ()
 
     constants = do
@@ -155,7 +160,7 @@ handleElement vc o n cont = do
         case cont of
             ContentString _st -> pyIf "isinstance(arg, str)"
                 "super().__init__(self._from_string(arg)); return"
-            ContentQuantity _sig _num _frac _unit -> do
+            ContentQuantity _sig _lsb _unit -> do
                 pyIf "isinstance(arg, float)" "super().__init__(self._from_float(arg)); return"
                 pyIf "isinstance(arg, tuple)" "super().__init__(self._from_float(arg[0])); return"
             _ -> pure ()
@@ -174,7 +179,7 @@ handleElement vc o n cont = do
         _ -> pure ()
 
     toQuantity = case cont of
-        ContentQuantity _sig _num _frac _unit -> pyFunc "to_quantity" ["self"] "float" $
+        ContentQuantity _sig _lsb _unit -> pyFunc "to_quantity" ["self"] "float" $
             "return self._to_quantity()"
         _ -> pure ()
 
@@ -888,4 +893,3 @@ mkCode includeComments versionText reference specs =
         , "#    - https://github.com/zoranbosnjak/asterix-lib-generator"
         , "#    - https://github.com/zoranbosnjak/asterix-specs"
         ]
-

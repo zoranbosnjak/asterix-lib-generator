@@ -318,15 +318,10 @@ class StringOctal(StringType):
 
 class Quantity:
     """Quantity helper class."""
-    def __init__(self, sig : Literal['Signed', 'Unsigned'], scal : float, k : int, unit : str):
+    def __init__(self, sig : Literal['Signed', 'Unsigned'], lsb : float, unit : str):
         self.sig = sig
-        self.scal = scal
-        self.k = k
+        self.lsb = lsb
         self.unit = unit
-
-    @property
-    def lsb(self) -> float:
-        return self.scal / float(pow(2, self.k))
 
 class Variation:
     """Baseclass for all variations."""
@@ -858,4 +853,3 @@ class Basic(AsterixSpec):
 
 class Expansion(AsterixSpec):
     variation : Any
-
