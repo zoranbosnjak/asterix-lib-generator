@@ -38,6 +38,13 @@ import           Asterix.Common
 argOf :: VariationIx -> Text
 argOf vc = nameOf vc <> "_Arg"
 
+-- | Enclose indented body between 'header' and 'footer'.
+enclose :: BlockM t () -> BlockM t () -> BlockM t () -> BlockM t ()
+enclose hdr ft body = mconcat [hdr, indent body, ft]
+
+blocksLn :: [BlockM Builder ()] -> BlockM Builder ()
+blocksLn = mconcat . intersperse ""
+
 -- | Python building blocks
 
 typeAlias :: Text -> Text -> BlockM Builder ()
@@ -883,7 +890,8 @@ mkCode includeComments versionText reference specs =
     headerCode <> "\n" <> genericCode <> generatedCode
   where
     genericCode = either (error . show) id $ TL.decodeUtf8' $ BSL.fromStrict $ genericCodeBS
-    generatedCode = BL.toLazyText $ renderBlockM 4 $ mkGeneratedCode includeComments versionText reference specs
+    generatedCode = BL.toLazyText $ render "    " "\n" $
+        mkGeneratedCode includeComments versionText reference specs
     headerCode = mconcat $ intersperse "\n"
         [ "#!/usr/bin/env python"
         , "# -*- coding: utf-8 -*-"
