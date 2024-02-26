@@ -116,6 +116,11 @@ data Asterix = Asterix
     , astSpec :: AstSpec
     } deriving (Eq, Ord, Show)
 
+unRule :: A.Rule a -> a
+unRule = \case
+    A.ContextFree a -> a
+    A.Dependent _items dv _lst -> dv
+
 -- | Show path as text.
 tPath :: Path -> Text
 tPath = T.pack . show . reverse
@@ -139,9 +144,8 @@ byteAligned path msg = do
     assert (show path <> ", " <> msg <> ": bit offset " <> show o) (o == mempty)
 
 -- | Derive content
-deriveContent :: A.Rule -> Content
-deriveContent (A.Dependent _ _) = ContentRaw
-deriveContent (A.ContextFree content) = case content of
+deriveContent :: A.Content -> Content
+deriveContent = \case
     A.ContentRaw -> ContentRaw
     A.ContentTable lst -> ContentTable lst
     A.ContentString st -> ContentString st
@@ -186,7 +190,7 @@ deriveVariationS path = \case
     A.Element n rule -> do
         o <- get
         modify (<> octetOffset n)
-        pure $ Element o n (deriveContent rule)
+        pure $ Element o n (deriveContent $ unRule rule)
     A.Group lst -> do
         result <- mapM (deriveItemS path) lst
         let loop _ [] = []
@@ -242,10 +246,14 @@ deriveVariationS path = \case
         byteAligned path "compound (post)"
         pure result
       where
-        removeRfs = \case
-            Just (A.Item _name _title A.RandomFieldSequencing _doc) -> Nothing
-            other -> other
+        removeRfs :: Maybe A.Item -> Maybe A.Item
+        removeRfs mItem = do
+            A.Item _name _title rule _doc <- mItem
+            guard $ (unRule rule) /= A.RandomFieldSequencing
+            mItem
+
         lst = fmap removeRfs lst'
+
         fspecMaxBytes :: ByteSize
         fspecMaxBytes = case mn of
             Just m -> case divMod m 8 of    -- no FX
@@ -254,6 +262,7 @@ deriveVariationS path = \case
             Nothing -> case divMod (length lst) 7 of    -- 1 bit for FX
                 (n, 0) -> n
                 (n, _) -> succ n
+
         fspecOf :: A.Name -> Fspec
         fspecOf name = case mn of
             Just _n ->
@@ -294,10 +303,10 @@ deriveItemS path = \case
         o <- get
         modify (<> octetOffset n)
         pure $ Spare o n
-    A.Item name title var _doc -> Item
+    A.Item name title rule _doc -> Item
         <$> pure name
         <*> pure title
-        <*> (deriveVariationS (name:path)) var
+        <*> (deriveVariationS (name:path)) (unRule rule)
 
 -- | Create toplevel compound item (which represents a category).
 mkToplevel :: [A.Item] -> [Maybe A.Name] -> A.Variation
