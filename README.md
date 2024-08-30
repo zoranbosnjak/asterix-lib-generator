@@ -1,5 +1,7 @@
 # Asterix data processing libraries
 
+**_NOTE:_** This projet is moved to <https://github.com/zoranbosnjak/asterix-libs>.
+
 This project generates libraries source code for asterix data processing with
 the following features:
 
